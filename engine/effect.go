@@ -6,5 +6,5 @@ type effect interface {
 }
 
 func execute(e effect) {
-
+	return
 }

@@ -1,10 +1,12 @@
 package engine
 
-import "fmt"
-
 type party struct {
 	player string
 	team   [3]character
+}
+
+func (p party) getTeam() [3]character {
+	return p.team
 }
 
 func (p *party) form(ids [3]string, player string) {
@@ -16,5 +18,4 @@ func (p *party) form(ids [3]string, player string) {
 
 	p.player = player
 	p.team = members
-	fmt.Println(p)
 }

@@ -1,5 +1,7 @@
 package engine
 
+import "fmt"
+
 type damage struct {
 	value   int
 	targets []character
@@ -8,6 +10,7 @@ type damage struct {
 func (d *damage) construct(value int, targets []character) {
 	d.targets = targets
 	d.value = value
+	fmt.Println(d)
 }
 
 func (d damage) getTargets() []character {
