@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 )
 
@@ -12,4 +13,12 @@ func RunDB(conn string) {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Successfully connected!")
+
 }
