@@ -32,7 +32,7 @@ func InitServer(port string, database *sql.DB) {
 	})
 	e.GET("/characters", func(c echo.Context) error {
 		var roster []char
-		rows, err := db.Query("SELECT name, profile_pic FROM characters")
+		rows, err := db.Query("SELECT id, name FROM characters")
 		if err != nil {
 			return c.String(http.StatusOK, "Falhou")
 		}
@@ -40,7 +40,7 @@ func InitServer(port string, database *sql.DB) {
 
 		for rows.Next() {
 			var name, profile string
-			if err := rows.Scan(&name, &profile); err != nil {
+			if err := rows.Scan(&profile, &name); err != nil {
 				return c.String(http.StatusOK, "Falhou feio")
 			}
 			roster = append(roster, char{name, profile})
