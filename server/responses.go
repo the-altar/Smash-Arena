@@ -15,3 +15,8 @@ type skill struct {
 type response struct {
 	Roster []char `json:"roster"`
 }
+
+type gameStart struct {
+	Player string `json:"player"`
+	Roster []char `json:"roster"`
+}

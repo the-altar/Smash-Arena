@@ -2,6 +2,7 @@ package server
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo"
@@ -18,10 +19,13 @@ func InitServer(port string, database *sql.DB) {
 
 	server.Static("/", "static")
 	server.POST("/game", func(c echo.Context) error {
-		m := echo.Map{}
-		if err := c.Bind(&m); err != nil {
+		m := new(gameStart)
+		if err := c.Bind(m); err != nil {
+
+			fmt.Println("Here I am")
 			return err
 		}
+		fmt.Println(m)
 		return c.JSON(http.StatusOK, m)
 	})
 
