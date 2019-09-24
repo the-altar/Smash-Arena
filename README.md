@@ -1,20 +1,15 @@
 # Smash-Arena
 A new take on the now defunct #1 turn-based, multiplayer, browser game ever, Naruto-Arena.
 
-## Server side
-### Packages (go modules)
-### Engine
-### Server 
-
-## Client side
-There's a handful of things yet to be done, client-side, such as:
+## Tasks:
 - [ ] finish UI
 - [ ] Implement connection to our game-server
 - [ ] Model our data archtecture   
+- [ ] Define game data models 
 
-## Data Model
+## Data Model - CLIENT
 Still under construction
-### Start game
+### Start game (SEND)
 
 
 | Key | Value | Description

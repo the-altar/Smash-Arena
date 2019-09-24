@@ -8,7 +8,7 @@ import (
 
 func getCharactersHandler(c echo.Context) error {
 	var roster []char
-	query := `select 	c.id, c.name, s.id as skill_id, s."name" as skill_id, s.description from "characters" as c join skills as s on c.id = s.char_id group by c.id, s.id;`
+	query := `select 	c.char_id, c.char_name, s.skill_id as skill_id, s.skill_name as skill_name, s.skill_description from "characters" as c join skills as s on c.char_id = s.char_id group by c.char_id, s.skill_id;`
 
 	rows, err := db.Query(query)
 	if err != nil {
