@@ -1,8 +1,8 @@
 package server
 
 type startGameReq struct {
-	UserID string   `json:"userID"`
-	TeamID []string `json:"teamID"`
+	UserID string   `json:"UserID"`
+	TeamID []string `json:"TeamID"`
 }
 
 type char struct {

@@ -14,5 +14,5 @@ Still under construction
 
 | Key | Value | Description
 | --- | ---- | :--- |
-| userID | **String** | A unique ID for each player so our server can identify them
-| teamID | **Array[String]** | An array with the ID of each character the player wants to start a game with. The server will use this ID to create a game room
+| UserID | **String** | A unique ID for each player so our server can identify them
+| TeamID | **Array[String]** | An array with the ID of each character the player wants to start a game with. The server will use this ID to create a game room
