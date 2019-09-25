@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo"
@@ -10,9 +9,10 @@ import (
 func startGameHandler(c echo.Context) error {
 
 	r := &startGameReq{}
+
 	if err := c.Bind(r); err != nil {
 		return c.JSON(http.StatusBadRequest, 0)
 	}
-	fmt.Println(r)
+	buildTeam(r) // from ./server_helpers.go
 	return c.JSON(http.StatusOK, 1)
 }

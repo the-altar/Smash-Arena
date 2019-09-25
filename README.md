@@ -10,8 +10,7 @@ A new take on the now defunct #1 turn-based, multiplayer, browser game ever, Nar
 ## Data Model - CLIENT
 Still under construction
 ### Start game (SEND)
-
-
+it's server-side equivalent is **startGameReq**
 | Key | Value | Description
 | --- | ---- | :--- |
 | UserID | **String** | A unique ID for each player so our server can identify them
