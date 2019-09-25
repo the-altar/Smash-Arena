@@ -1,5 +1,10 @@
 package server
 
+type startGameReq struct {
+	UserID string   `json:"userID"`
+	TeamID []string `json:"teamID"`
+}
+
 type char struct {
 	Name    string  `json:"name"`
 	Profile string  `json:"profile"`
@@ -13,10 +18,5 @@ type skill struct {
 }
 
 type response struct {
-	Roster []char `json:"roster"`
-}
-
-type gameStart struct {
-	Player string `json:"player"`
 	Roster []char `json:"roster"`
 }

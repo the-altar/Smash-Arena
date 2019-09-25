@@ -2,7 +2,7 @@ package main
 
 import (
 	"os"
-	"smash/database"
+	"smash/gamedb"
 	"smash/server"
 
 	_ "github.com/lib/pq"
@@ -11,7 +11,7 @@ import (
 func main() {
 	port := os.Getenv("PORT")
 	connString := os.Getenv("DATABASE_URL")
-	database := database.RunDB(connString)
+	database := gamedb.RunDB(connString)
 
 	if port == "" {
 		port = "3000"
