@@ -11,6 +11,7 @@ A new take on the now defunct #1 turn-based, multiplayer, browser game ever, Nar
 
 ### Character 
 **char**
+
 | Key | Value | Description
 | --- | ---- | :--- |
 | ID | **int** | A unique ID for each character
