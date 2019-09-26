@@ -20,8 +20,8 @@ func InitServer(port string, dbase *sql.DB) {
 	server.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello World")
 	})
-	server.GET("/characters", getCharactersHandler) // from api_character.go
-	server.POST("/newgame", startGameHandler)       // from api_game.go
+	server.GET("/character", getCharactersHandler) // from api_character.go
+	server.POST("/newgame", startGameHandler)      // from api_game.go
 
 	server.Logger.Fatal(server.Start(":" + port))
 }

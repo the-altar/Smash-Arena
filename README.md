@@ -7,17 +7,34 @@ A new take on the now defunct #1 turn-based, multiplayer, browser game ever, Nar
 - [ ] Model our data archtecture   
 - [ ] Define game data models 
 
-## Data Model - CLIENT
-Still under construction
+## Data Models
+
+### Character 
+**char**
+| Key | Value | Description
+| --- | ---- | :--- |
+| ID | **int** | A unique ID for each character
+| Name | **Array[String]** | Character's name
+| Profile | **Array[String]** | Flavor text; short introduction
+
 ### Start game (SEND)
-it's server-side equivalent is **startGameReq**
+**startGameReq**
+
 | Key | Value | Description
 | --- | ---- | :--- |
 | UserID | **String** | A unique ID for each player so our server can identify them
-| TeamID | **Array[String]** | An array with the ID of each character the player wants to start a game with. The server will use this ID to create a game room
+| TeamID | **Array[String]** | Unique identifier for each character the player has on his team
 
-### Get Characters Response ( shallow )
+## API endpoints
+
+> GET /character
+
+| parameter | required | info
+| --- | --- | --- |
+| q | no | this get request will return a JSON with all characters within the game
+
+**Response**
+
 | Key | Value | Description
 | --- | ---- | :--- |
-| CharID | **String** | the unique identifier for that character
-| CharName | **String** | character's name 
+| roster | [char[]](#character) | an array containing every character within the game

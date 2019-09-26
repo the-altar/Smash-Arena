@@ -8,10 +8,7 @@ import (
 )
 
 func getCharactersHandler(c echo.Context) error {
-	type char struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
-	}
+
 	type response struct {
 		Roster []char `json:"roster"`
 	}
