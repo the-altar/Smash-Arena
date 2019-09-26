@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"smash/engine"
 	"smash/gamedb"
 )
@@ -18,13 +17,13 @@ type results struct {
 	tick             bool
 }
 
-func buildTeam(r *startGameReq) {
+func buildTeam(r *startGameReq) map[int]engine.Character {
 	charMap := make(map[int]engine.Character)
 	teamQuery := gamedb.QueryCharData(r.TeamID)
 	rows, err := db.Query(teamQuery)
 
 	if err != nil {
-		return
+		panic(err)
 	}
 	defer rows.Close()
 
@@ -36,7 +35,7 @@ func buildTeam(r *startGameReq) {
 		}
 		buildCharacter(*res, charMap)
 	}
-	fmt.Println(charMap)
+	return charMap
 }
 
 func buildCharacter(res results, charMap map[int]engine.Character) {

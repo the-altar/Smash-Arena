@@ -1,8 +1,6 @@
 package gamedb
 
-import "fmt"
-
-// QueryCharData buils a query string for a specific skills
+// QueryCharData builds a query string for a specific skills
 func QueryCharData(TeamID []string) string {
 
 	arrSize := len(TeamID)
@@ -17,6 +15,11 @@ func QueryCharData(TeamID []string) string {
 
 		query = query + qString
 	}
-	fmt.Println(query)
+
 	return query
+}
+
+// QueryAllCharShallow builds a query string that fetches only the character's id and name;
+func QueryAllCharShallow() string {
+	return `select c.char_id, c.char_name from "characters" as c`
 }
