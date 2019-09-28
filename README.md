@@ -7,19 +7,51 @@ A new take on the now defunct #1 turn-based, multiplayer, browser game ever, Nar
 - [ ] Model our data archtecture   
 - [ ] Define game data models 
 
-## Data Models
+# Data Models
 
-### Character 
-**char**
+## **Character** 
+### charClient
+This is the data sent back to the client when they make a request for a specific character
 
-| Key | Value | Description
+| Key | Value | Description |
 | --- | ---- | :--- |
 | ID | **int** | A unique ID for each character
 | Name | **Array[String]** | Character's name
 | Profile | **Array[String]** | Flavor text; short introduction
 
-### Start game (SEND)
-**startGameReq**
+## charServer 
+
+| Key | Value | Description |
+| --- | ---- | :--- |
+| ID | **int** | A unique identifier
+| Name | **string** | Character's name
+| Health | **int** | Character's current health
+| Skills | [**Map{int}Skill**](#Skills) | Flavor text; short introduction
+
+## **Skills**
+### Skill
+| Key | Value | Description | Client-side
+| --- | ---- | :--- | :---: |
+| ID | **int** | unique identifier | yes
+| Name | **bool** | skill's name; also unique | yes
+| Desc | **int** | Description of what the skill does | Yes
+| Effect | [**map{String}Effect**](#Skill-Effects)| No
+
+## **Skill Effects**
+Every struct defined below are lumped together by an *Effect* interface 
+### Damage 
+
+| Key | Value | Description | Client-side
+| --- | ---- | :--- | :---: |
+| Value | **int** | How much damage is dealt | yes
+| Tick | **bool** | If false, damage will be dealt every turn, otherwise it'll be dealt only after effect's duration ends | yes
+| Duration | **int** | How long this effect will last. | yes
+
+
+
+## Game
+### **startGameReq**
+This is the data the server expects when the client wants to start a new game
 
 | Key | Value | Description
 | --- | ---- | :--- |
@@ -28,7 +60,8 @@ A new take on the now defunct #1 turn-based, multiplayer, browser game ever, Nar
 
 ## API endpoints
 
-> GET /character
+### get character
+> GET    /character
 
 | parameter | required | info
 | --- | --- | --- |
@@ -38,4 +71,4 @@ A new take on the now defunct #1 turn-based, multiplayer, browser game ever, Nar
 
 | Key | Value | Description
 | --- | ---- | :--- |
-| roster | [char[]](#character) | an array containing every character within the game
+| roster | [char[]](#charClient) | an array containing client-relevant information about every character within the game

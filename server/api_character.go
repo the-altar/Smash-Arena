@@ -10,10 +10,10 @@ import (
 func getCharactersHandler(c echo.Context) error {
 
 	type response struct {
-		Roster []char `json:"roster"`
+		Roster []charClient `json:"roster"`
 	}
 
-	roster := &response{make([]char, 0)}
+	roster := &response{make([]charClient, 0)}
 	query := gamedb.QueryAllCharShallow()
 	rows, err := db.Query(query)
 
@@ -24,8 +24,8 @@ func getCharactersHandler(c echo.Context) error {
 	defer rows.Close()
 
 	for rows.Next() {
-		char := char{}
-		if err := rows.Scan(&char.ID, &char.Name); err != nil {
+		char := charClient{}
+		if err := rows.Scan(&char.ID, &char.Name, &char.Profile); err != nil {
 			return c.String(http.StatusOK, "Falhou feio")
 		}
 		roster.Roster = append(roster.Roster, char)

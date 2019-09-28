@@ -21,5 +21,5 @@ func QueryCharData(TeamID []string) string {
 
 // QueryAllCharShallow builds a query string that fetches only the character's id and name;
 func QueryAllCharShallow() string {
-	return `select c.char_id, c.char_name, c.char_description from "characters" as c`
+	return `select c.char_id, c.char_name, c.char_profile from "characters" as c`
 }
