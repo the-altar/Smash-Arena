@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-//RunDB kicks starts our database
+//RunDB starts our database
 func RunDB(conn string) *sql.DB {
 	db, err := sql.Open("postgres", conn)
 	if err != nil {

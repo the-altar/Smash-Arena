@@ -12,9 +12,5 @@ func main() {
 	port := os.Getenv("PORT")
 	connString := os.Getenv("DATABASE_URL")
 	database := gamedb.RunDB(connString)
-
-	if port == "" {
-		port = "3000"
-	}
 	server.InitServer(port, database)
 }

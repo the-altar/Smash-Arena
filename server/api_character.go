@@ -7,6 +7,15 @@ import (
 	"github.com/labstack/echo"
 )
 
+type (
+	// charClient is what we send back to the client when they request information about a character
+	charClient struct {
+		ID      int    `json:"ID"`
+		Name    string `json:"Name"`
+		Profile string `json:"Profile"`
+	}
+)
+
 func getCharactersHandler(c echo.Context) error {
 
 	type response struct {

@@ -7,3 +7,7 @@ type Character struct {
 	Health int
 	Skills map[int]Skill
 }
+
+func (c Character) getSkills(string) map[int]Skill {
+	return c.Skills
+}

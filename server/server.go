@@ -12,7 +12,7 @@ var (
 	server *echo.Echo = echo.New()
 )
 
-// InitServer boots our server
+// InitServer starts the server
 func InitServer(port string, dbase *sql.DB) {
 	db = dbase
 	server.Static("/", "static")
