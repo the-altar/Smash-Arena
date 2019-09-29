@@ -21,6 +21,6 @@ func InitServer(port string, dbase *sql.DB) {
 		return c.String(http.StatusOK, "Hello World")
 	})
 	server.GET("/character", getCharactersHandler) // from api_character.go
-	server.POST("/newgame", startGameHandler)      // from api_game.go
+	server.GET("/newgame", startGameHandler)       // from api_game.go
 	server.Logger.Fatal(server.Start(":" + port))
 }

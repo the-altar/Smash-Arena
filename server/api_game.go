@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"smash/engine"
 	"smash/gamedb"
@@ -10,7 +11,11 @@ import (
 )
 
 var (
-	upgrader = websocket.Upgrader{}
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     func(r *http.Request) bool { return true },
+	}
 )
 
 type (
@@ -38,10 +43,12 @@ type (
 // StartGameHandler will handle whenever a client wants to start a new game
 func startGameHandler(c echo.Context) error {
 
-	r := &startGameReq{}
-
-	game := buildTeam(r)
-	return c.JSON(http.StatusOK, game)
+	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+	if err != nil {
+		return err
+	}
+	go socket(ws)
+	return c.JSON(http.StatusOK, 1)
 }
 
 // BuildTeam builds the player's team for the game
@@ -69,14 +76,14 @@ func buildTeam(r *startGameReq) map[int]engine.Character {
 
 // BuildCharacter builds a character from our engine package
 func buildCharacter(res dbFeed, charMap map[int]engine.Character) {
-	char, ok := charMap[res.charID]
+	_, ok := charMap[res.charID]
 	key := res.charID
 	// the follwing 2 ifs are here so we don't build the same character and skill more than once
 	if !ok {
-		char = engine.Character{key, res.charName, 100, map[int]engine.Skill{}}
+		charMap[key] = engine.Character{key, res.charName, 100, map[int]engine.Skill{}}
 	}
 
-	skills := char.Skills
+	skills := charMap[key].Skills
 	_, ok = skills[res.skillID]
 	if !ok {
 		skills[res.skillID] = engine.Skill{res.skillID, res.skillName, res.skillDescription, map[string][]engine.Effect{}}
@@ -90,5 +97,29 @@ func buildCharacter(res dbFeed, charMap map[int]engine.Character) {
 
 	if res.effectName == "damage" {
 		effects[res.effectName] = append(effects[res.effectName], engine.Damage{res.value, res.tick, res.duration})
+	}
+}
+
+func socket(conn *websocket.Conn) {
+	defer conn.Close()
+	type msg struct {
+		Hello string `json:"hello"`
+	}
+	for {
+		m := msg{}
+		err := conn.ReadJSON(&m)
+		if err != nil {
+			fmt.Println("Error reading JSON.", err)
+			break
+		}
+
+		fmt.Println(m)
+		if m.Hello == "x" {
+			fmt.Println("TERMINATING CONNECTION")
+			break
+		}
+		if err = conn.WriteJSON(m); err != nil {
+			fmt.Println("SOMETHING WENT WRONG")
+		}
 	}
 }
