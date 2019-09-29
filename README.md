@@ -72,3 +72,32 @@ This is the data the server expects when the client wants to start a new game
 | Key | Value | Description
 | --- | ---- | :--- |
 | roster | [char[]](#charClient) | an array containing client-relevant information about every character within the game
+
+### newgame
+> POST   /newgame
+
+| key | Value | required
+| --- | --- | --- |
+| playerID | **string** | yes
+| teamID |**[]string** | yes
+
+**Response** 
+
+| key | Value | Description
+| --- | --- | --- |
+| gid | **string** | A unique identifier for a game room
+
+### arena
+> GET    /arena
+
+| parameter | required | info
+| --- | --- | --- |
+| q | no | This request will open a websocket between the client and the server
+
+**Response**
+
+| key | Value | Description
+| --- | --- | --- |
+| code | **int** | 1 if sucessful, 0 otherwise
+
+
