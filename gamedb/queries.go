@@ -12,7 +12,6 @@ func QueryCharData(TeamID []string) string {
 		if i < (arrSize - 1) {
 			qString = qString + " or"
 		}
-
 		query = query + qString
 	}
 

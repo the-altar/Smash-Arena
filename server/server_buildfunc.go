@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"smash/engine"
 	"smash/gamedb"
 )
@@ -33,7 +32,6 @@ func buildTeam(r *startGameReq) map[int]engine.Character {
 		}
 		buildCharacter(*res, charMap)
 	}
-	fmt.Println(charMap)
 	return charMap
 }
 

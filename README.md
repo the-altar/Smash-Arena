@@ -88,7 +88,7 @@ This is the data the server expects when the client wants to start a new game
 | gid | **string** | A unique identifier for a game room
 
 ### arena
-> GET    /arena
+> WEBSOCKET (get)    /arena
 
 | parameter | required | info
 | --- | --- | --- |
