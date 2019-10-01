@@ -21,7 +21,8 @@ func socket(ws *websocket.Conn) {
 				fmt.Println(arenas[clientMsg.Client])
 			}
 		} else {
-			fmt.Println(err)
+			fmt.Println("SOMETHING WENT WRONG!")
+			break
 		}
 	}
 }

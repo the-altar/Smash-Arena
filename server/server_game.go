@@ -16,6 +16,13 @@ var (
 	}
 
 	arenas = make(map[string]*engine.GameRoom)
+	roomM  = roomManager{}
+)
+
+type (
+	roomManager struct {
+		available []*engine.GameRoom
+	}
 )
 
 // StartGameHandler will handle whenever a client wants to start a new game
@@ -30,6 +37,18 @@ func startGameHandler(c echo.Context) error {
 	groom := buildGameRoom(servant, r.UserID)
 	arenas[r.UserID] = groom
 
+	if len(roomM.available) == 0 {
+		roomM.available = append(roomM.available, arenas[r.UserID])
+	} else {
+		opRoom := roomM.available[0]
+		roomM.available = roomM.available[1:]
+		opRoom.AddEnemies(groom.GetServant())
+		opRoom.SetOpponent(groom.GetPlayer())
+		opRoom.SetTimer(60)
+
+		groom.AddEnemies(opRoom.GetServant())
+		groom.SetOpponent(opRoom.GetPlayer())
+	}
 	return c.JSON(http.StatusOK, 1)
 }
 

@@ -53,5 +53,6 @@ func InitServer(port string, dbase *sql.DB) {
 	server.GET("/character", getCharactersHandler) // from server_character.go
 	server.POST("/newgame", startGameHandler)      // from server_game.go
 	server.GET("/arena", arenaHandler)             // from server_game.go
+	server.HideBanner = true
 	server.Logger.Fatal(server.Start(":" + port))
 }

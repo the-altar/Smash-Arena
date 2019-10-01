@@ -32,5 +32,15 @@ func (g *GameRoom) SetPlayer(player string) {
 
 // SetOpponent sets player 2
 func (g *GameRoom) SetOpponent(player string) {
-	g.player = player
+	g.opponent = player
+}
+
+// GetPlayer returns the player's id
+func (g *GameRoom) GetPlayer() string {
+	return g.player
+}
+
+// GetServant returns the player's team
+func (g *GameRoom) GetServant() map[int]Character {
+	return g.servant
 }
