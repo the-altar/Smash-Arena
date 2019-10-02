@@ -31,7 +31,7 @@ func arenaHandler(c echo.Context) error {
 	g := gameHub{ws: ws, available: true, send: make(chan int), game: arenas[id]}
 
 	go serveSocket(g)
-	go listenSocket(g)
+	go listenSocket(g, id)
 
 	return c.JSON(http.StatusOK, 1)
 }

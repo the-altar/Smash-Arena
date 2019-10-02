@@ -2,45 +2,57 @@ package server
 
 import (
 	"fmt"
+	"time"
 )
 
-func listenSocket(g gameHub) {
+func joinRoom(g gameHub, id string) {
+	freeSize := len(freeArenas)
+	g.game = arenas[id]
+
+	for {
+		if freeSize > 0 {
+			opponent := freeArenas[0]
+			freeArenas = freeArenas[:freeSize-1]
+
+			opponent.AddEnemies(g.game.GetTeam())
+			opponent.SetOpponent(g.game.GetPlayer())
+
+			g.game.AddEnemies(opponent.GetTeam())
+			g.game.SetOpponent(opponent.GetPlayer())
+
+			g.game.Full <- true
+			opponent.Full <- true
+			break
+
+		} else {
+			freeArenas = append(freeArenas, g.game)
+			g.game.Full <- false
+			time.Sleep(5 * time.Second)
+		}
+	}
+
+}
+
+func listenSocket(g gameHub, id string) {
 	clientMsg := clientMessageGame{}
 	defer g.ws.Close()
-	freeSize := len(freeArenas)
 
-	if freeSize > 0 {
-		opponent := freeArenas[0]
-		freeArenas = freeArenas[:freeSize-1]
-
-		opponent.AddEnemies(g.game.GetTeam())
-		opponent.SetOpponent(g.game.GetPlayer())
-
-		g.game.AddEnemies(opponent.GetTeam())
-		g.game.SetOpponent(opponent.GetPlayer())
-
-		g.game.Full <- true
-		opponent.Full <- true
-	} else {
-		freeArenas = append(freeArenas, g.game)
-		g.game.Full <- false
-	}
+	go joinRoom(g, id)
 
 	for {
 		if err := g.ws.ReadJSON(&clientMsg); err == nil {
 			switch clientMsg.Code {
 			case 1:
-				g.game = arenas[clientMsg.Client]
+
 				fmt.Println("Game sucessfully built")
 			case 2:
 				g.send <- 1
 				fmt.Println("Sent channel!")
 			case 3:
-				fmt.Println(arenas[clientMsg.Client])
+				fmt.Println(arenas[id])
 			}
 		} else {
-			fmt.Println("SOMETHING WENT WRONG!")
-			fmt.Println(err)
+			delete(arenas, id)
 			break
 		}
 	}
@@ -64,7 +76,7 @@ func serveSocket(g gameHub) {
 				})
 			} else {
 				g.ws.WriteJSON(clientMessageGame{
-					Client: "Server",
+					Client: "Searching for an opponent! ",
 					Code:   0,
 				})
 			}
