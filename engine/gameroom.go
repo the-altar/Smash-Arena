@@ -5,14 +5,15 @@ type GameRoom struct {
 	opponent string
 	player   string
 	yourturn bool
+	Full     chan bool
 	timer    int
-	servant  map[int]Character
+	team     map[int]Character
 	enemies  map[int]Character
 }
 
-// AddServant adds characters to our "servant" field
-func (g *GameRoom) AddServant(chars map[int]Character) {
-	g.servant = chars
+// AddTeam adds characters to our "team" field
+func (g *GameRoom) AddTeam(chars map[int]Character) {
+	g.team = chars
 }
 
 // AddEnemies adds characters to our "enemies" field
@@ -27,6 +28,7 @@ func (g *GameRoom) SetTimer(time int) {
 
 // SetPlayer sets player 1
 func (g *GameRoom) SetPlayer(player string) {
+	g.Full = make(chan bool)
 	g.player = player
 }
 
@@ -40,7 +42,7 @@ func (g *GameRoom) GetPlayer() string {
 	return g.player
 }
 
-// GetServant returns the player's team
-func (g *GameRoom) GetServant() map[int]Character {
-	return g.servant
+// GetTeam returns the player's team
+func (g *GameRoom) GetTeam() map[int]Character {
+	return g.team
 }

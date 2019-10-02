@@ -5,26 +5,49 @@ import (
 	"net/http"
 	"smash/engine"
 
+	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 )
 
 var (
-	db     *sql.DB
-	server *echo.Echo = echo.New()
+	db       *sql.DB
+	server   *echo.Echo = echo.New()
+	upgrader            = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     func(r *http.Request) bool { return true },
+	}
+	arenas     = make(map[string]*engine.GameRoom)
+	freeArenas = make([]*engine.GameRoom, 0)
 )
 
 // All built-in types we'll need in this package
 type (
+	// charClient is what we send back to the client when they request information about a character
+	charClient struct {
+		ID      int    `json:"ID"`
+		Name    string `json:"Name"`
+		Profile string `json:"Profile"`
+	}
+	// clientMessageGame is what we expect to get from the client once they're in game
 	clientMessageGame struct {
-		Client string                   `json:"client"`
-		Code   int                      `json:"code"`
-		Data   map[int]engine.Character `json:"data"`
+		Client    string                   `json:"client"`
+		Code      int                      `json:"code"`
+		GameState map[int]engine.Character `json:"gameState"`
 	}
 
 	// startGameReq is the data from the initial request we get from the client to start a game
 	startGameReq struct {
 		UserID string   `json:"userID"`
 		TeamID []string `json:"teamID"`
+	}
+
+	// A game hub for each game
+	gameHub struct {
+		available bool
+		ws        *websocket.Conn
+		send      chan int
+		game      *engine.GameRoom
 	}
 
 	/* dbFeed contains all the info we get from the database. I'm using it as an struct to avoid passing
@@ -46,13 +69,10 @@ type (
 func InitServer(port string, dbase *sql.DB) {
 	db = dbase
 	server.Static("/", "static")
-
-	server.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello World")
-	})
+	server.File("/", "static/dist/index.html")
 	server.GET("/character", getCharactersHandler) // from server_character.go
 	server.POST("/newgame", startGameHandler)      // from server_game.go
-	server.GET("/arena", arenaHandler)             // from server_game.go
+	server.GET("/arena/:id", arenaHandler)         // from server_game.go
 	server.HideBanner = true
 	server.Logger.Fatal(server.Start(":" + port))
 }

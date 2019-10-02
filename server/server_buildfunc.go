@@ -7,7 +7,7 @@ import (
 
 func buildGameRoom(charMap map[int]engine.Character, user string) *engine.GameRoom {
 	gRoom := &engine.GameRoom{}
-	gRoom.AddServant(charMap)
+	gRoom.AddTeam(charMap)
 	gRoom.SetTimer(60)
 	gRoom.SetPlayer(user)
 	return gRoom
