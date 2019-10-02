@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"smash/engine"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
@@ -20,6 +21,7 @@ var (
 	}
 	arenas     = make(map[string]*engine.GameRoom)
 	freeArenas = make([]*engine.GameRoom, 0)
+	mutex      = &sync.Mutex{}
 )
 
 // All built-in types we'll need in this package

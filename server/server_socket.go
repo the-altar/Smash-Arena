@@ -6,14 +6,19 @@ import (
 )
 
 func joinRoom(g gameHub, id string) {
-	freeSize := len(freeArenas)
+
 	g.game = arenas[id]
 
 	for {
+		mutex.Lock()
+		freeSize := len(freeArenas)
+		mutex.Unlock()
+
 		if freeSize > 0 {
+			mutex.Lock()
 			opponent := freeArenas[0]
 			freeArenas = freeArenas[:freeSize-1]
-
+			mutex.Unlock()
 			opponent.AddEnemies(g.game.GetTeam())
 			opponent.SetOpponent(g.game.GetPlayer())
 
@@ -25,7 +30,9 @@ func joinRoom(g gameHub, id string) {
 			break
 
 		} else {
+			mutex.Lock()
 			freeArenas = append(freeArenas, g.game)
+			mutex.Unlock()
 			g.game.Full <- false
 			time.Sleep(5 * time.Second)
 		}
