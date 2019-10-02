@@ -69,7 +69,7 @@ type (
 func InitServer(port string, dbase *sql.DB) {
 	db = dbase
 	server.Static("/", "static")
-	server.File("/", "static/dist/index.html")
+	server.File("/", "static/index.html")
 	server.GET("/character", getCharactersHandler) // from server_character.go
 	server.POST("/newgame", startGameHandler)      // from server_game.go
 	server.GET("/arena/:id", arenaHandler)         // from server_game.go
