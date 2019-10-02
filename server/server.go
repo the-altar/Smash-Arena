@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 )
 
 var (
@@ -68,6 +69,7 @@ type (
 // InitServer starts the server
 func InitServer(port string, dbase *sql.DB) {
 	db = dbase
+	server.Use(middleware.CORS())
 	server.Static("/", "static")
 	server.File("/", "static/index.html")
 	server.GET("/character", getCharactersHandler) // from server_character.go
