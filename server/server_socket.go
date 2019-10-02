@@ -30,7 +30,6 @@ func joinRoom(g gameHub, id string) {
 			time.Sleep(5 * time.Second)
 		}
 	}
-
 }
 
 func listenSocket(g gameHub, id string) {
@@ -43,7 +42,6 @@ func listenSocket(g gameHub, id string) {
 		if err := g.ws.ReadJSON(&clientMsg); err == nil {
 			switch clientMsg.Code {
 			case 1:
-
 				fmt.Println("Game sucessfully built")
 			case 2:
 				g.send <- 1
@@ -53,6 +51,7 @@ func listenSocket(g gameHub, id string) {
 			}
 		} else {
 			delete(arenas, id)
+			g.send <- 0
 			break
 		}
 	}
@@ -63,11 +62,16 @@ func serveSocket(g gameHub) {
 	for {
 		select {
 		case msg := <-g.send:
-			fmt.Println(msg)
-			g.ws.WriteJSON(clientMessageGame{
-				Client: "Server",
-				Code:   2,
-			})
+			if msg == 1 {
+				fmt.Println(msg)
+				g.ws.WriteJSON(clientMessageGame{
+					Client: "Server",
+					Code:   2,
+				})
+			} else {
+				fmt.Println("Connection lost")
+				break
+			}
 		case isFull := <-g.game.Full:
 			if isFull {
 				g.ws.WriteJSON(clientMessageGame{
