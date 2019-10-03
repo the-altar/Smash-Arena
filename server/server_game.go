@@ -9,32 +9,30 @@ import (
 // StartGameHandler will handle whenever a client wants to start a new game
 func startGameHandler(c echo.Context) error {
 	r := &startGameReq{}
-
 	if err := c.Bind(r); err != nil {
 		return c.JSON(http.StatusBadRequest, 0)
 	}
-
-	team := buildTeam(r)
-	gameRoom := buildGameRoom(team, r.UserID)
-	arenas[r.UserID] = gameRoom // map the team that was just created so we can find it later
-
+	rManager.createRoom(r) // creates a room and adds it to the roomManager.Rooms map using the player's ID as key
 	return c.JSON(http.StatusOK, 1)
 }
 
 // GameRoomHandle will deal with everything else after the initial request is successful
 func arenaHandler(c echo.Context) error {
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
-	id := c.Param("id")
-	chat := make(chan int)
+	id, chat := c.Param("id"), make(chan int)
 
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, 0)
 	}
-	g := gameHub{ws: ws, available: true, send: make(chan int), game: arenas[id]}
 
-	mutex.Lock()
-	gamePool = append(gamePool, g)
-	mutex.Unlock()
+	g := gameHub{ws: ws, available: true, send: make(chan int), game: rManager.Rooms[id]}
+
+	rManager.addToPool(g)
+	if len(rManager.freeRooms) > 0 {
+		go matchMaking()
+	} else {
+		<-rManager.freeRooms
+	}
 
 	go serveSocket(g, chat)
 	go listenSocket(g, id, chat)

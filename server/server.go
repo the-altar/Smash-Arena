@@ -21,8 +21,7 @@ var (
 		WriteBufferSize: 1024,
 		CheckOrigin:     func(r *http.Request) bool { return true },
 	}
-	arenas   = make(map[string]*engine.GameRoom)
-	gamePool = make([]gameHub, 0)
+	rManager = roomManager{}
 	mutex    = &sync.Mutex{}
 )
 
@@ -68,18 +67,18 @@ type (
 		duration         int
 		tick             bool
 	}
+
+	roomManager struct {
+		Rooms     map[string]*engine.GameRoom
+		GamePool  []gameHub
+		freeRooms chan bool
+	}
 )
 
 // InitServer starts the server
 func InitServer(port string, dbase *sql.DB) {
 	db = dbase
-	go func() {
-		for {
-			matchmake()
-			fmt.Println("Ran matchmaking")
-			time.Sleep(10 * time.Second)
-		}
-	}()
+	rManager.begin()
 
 	server.Use(middleware.CORS())
 	server.Static("/", "static")
@@ -89,5 +88,62 @@ func InitServer(port string, dbase *sql.DB) {
 	server.GET("/arena/:id", arenaHandler)         // from server_game.go
 	server.HideBanner = true
 	server.Logger.Fatal(server.Start(":" + port))
+}
 
+func matchMaking() {
+	for {
+		fmt.Println("Matchmaking...")
+		matchmake()
+		time.Sleep(10 * time.Second)
+
+		if rManager.poolSize() < 1 {
+			fmt.Println("Killing process...")
+			rManager.freeRooms <- false
+			return
+		}
+	}
+}
+
+func (r *roomManager) begin() {
+	r.Rooms = make(map[string]*engine.GameRoom)
+	r.GamePool = make([]gameHub, 0)
+	r.freeRooms = make(chan bool)
+}
+
+func (r *roomManager) createRoom(req *startGameReq) {
+	room := buildGameRoom(req)
+	r.Rooms[req.UserID] = room
+}
+
+func (r *roomManager) addToPool(g gameHub) {
+	mutex.Lock()
+	r.GamePool = append(r.GamePool, g)
+	mutex.Unlock()
+}
+
+func (r *roomManager) poolSize() int {
+	mutex.Lock()
+	size := len(r.GamePool)
+	mutex.Unlock()
+	return size
+}
+
+func (r *roomManager) poolPop() (int, gameHub) {
+	s := r.poolSize()
+	if s > 0 {
+		mutex.Lock()
+		x := r.GamePool[s-1]
+		r.GamePool = r.GamePool[:s-1]
+		mutex.Unlock()
+
+		return 1, x
+	}
+
+	return 0, gameHub{}
+}
+
+func (gh *gameHub) joinEnemy(t map[int]engine.Character, pID string) {
+	gh.game.SetOpponent(pID)
+	gh.game.AddEnemies(t)
+	gh.game.Full <- true
 }

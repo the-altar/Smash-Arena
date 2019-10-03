@@ -5,14 +5,6 @@ import (
 	"smash/gamedb"
 )
 
-func buildGameRoom(charMap map[int]engine.Character, user string) *engine.GameRoom {
-	gRoom := &engine.GameRoom{}
-	gRoom.AddTeam(charMap)
-	gRoom.SetTimer(60)
-	gRoom.SetPlayer(user)
-	return gRoom
-}
-
 // BuildTeam builds the player's team for the game
 func buildTeam(r *startGameReq) map[int]engine.Character {
 	charMap := make(map[int]engine.Character)
@@ -33,6 +25,15 @@ func buildTeam(r *startGameReq) map[int]engine.Character {
 		buildCharacter(*res, charMap)
 	}
 	return charMap
+}
+
+func buildGameRoom(r *startGameReq) *engine.GameRoom {
+	team := buildTeam(r)
+	gRoom := &engine.GameRoom{}
+	gRoom.AddTeam(team)
+	gRoom.SetTimer(60)
+	gRoom.SetPlayer(r.UserID)
+	return gRoom
 }
 
 // BuildCharacter builds a character from our engine package

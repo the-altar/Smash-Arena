@@ -4,23 +4,15 @@ import (
 	"fmt"
 )
 
-func matchmake() {
-	mutex.Lock()
-	for i := 1; i < len(gamePool); i++ {
-		g1 := gamePool[i-1]
-		g2 := gamePool[i]
-		gamePool = gamePool[i:]
+func matchmake() bool {
+	for i := 1; i < rManager.poolSize(); i++ {
+		_, g1 := rManager.poolPop()
+		_, g2 := rManager.poolPop()
 
-		g1.game.AddEnemies(g2.game.GetTeam())
-		g1.game.SetOpponent(g2.game.GetPlayer())
-
-		g2.game.AddEnemies(g1.game.GetTeam())
-		g2.game.SetOpponent(g1.game.GetPlayer())
-
-		g2.game.Full <- true
-		g1.game.Full <- true
+		g1.joinEnemy(g2.game.GetTeam(), g2.game.GetPlayer())
+		g2.joinEnemy(g1.game.GetTeam(), g1.game.GetPlayer())
 	}
-	mutex.Unlock()
+	return false
 }
 
 func listenSocket(g gameHub, id string, chat chan int) {
