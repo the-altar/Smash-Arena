@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"smash/engine"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
@@ -19,9 +20,9 @@ var (
 		WriteBufferSize: 1024,
 		CheckOrigin:     func(r *http.Request) bool { return true },
 	}
-	arenas     = make(map[string]*engine.GameRoom)
-	freeArenas = make([]*engine.GameRoom, 0)
-	mutex      = &sync.Mutex{}
+	arenas   = make(map[string]*engine.GameRoom)
+	gamePool = make([]gameHub, 0)
+	mutex    = &sync.Mutex{}
 )
 
 // All built-in types we'll need in this package
@@ -79,4 +80,11 @@ func InitServer(port string, dbase *sql.DB) {
 	server.GET("/arena/:id", arenaHandler)         // from server_game.go
 	server.HideBanner = true
 	server.Logger.Fatal(server.Start(":" + port))
+
+	go func() {
+		for {
+			matchmake()
+			time.Sleep(10 * time.Second)
+		}
+	}()
 }

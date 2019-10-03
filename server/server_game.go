@@ -8,8 +8,8 @@ import (
 
 // StartGameHandler will handle whenever a client wants to start a new game
 func startGameHandler(c echo.Context) error {
-
 	r := &startGameReq{}
+
 	if err := c.Bind(r); err != nil {
 		return c.JSON(http.StatusBadRequest, 0)
 	}
@@ -17,6 +17,7 @@ func startGameHandler(c echo.Context) error {
 	team := buildTeam(r)
 	gameRoom := buildGameRoom(team, r.UserID)
 	arenas[r.UserID] = gameRoom // map the team that was just created so we can find it later
+
 	return c.JSON(http.StatusOK, 1)
 }
 
@@ -24,14 +25,19 @@ func startGameHandler(c echo.Context) error {
 func arenaHandler(c echo.Context) error {
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	id := c.Param("id")
+	chat := make(chan int)
 
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, 0)
 	}
 	g := gameHub{ws: ws, available: true, send: make(chan int), game: arenas[id]}
 
-	go serveSocket(g)
-	go listenSocket(g, id)
+	mutex.Lock()
+	gamePool = append(gamePool, g)
+	mutex.Unlock()
+
+	go serveSocket(g, chat)
+	go listenSocket(g, id, chat)
 
 	return c.JSON(http.StatusOK, 1)
 }
