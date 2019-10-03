@@ -28,11 +28,7 @@ func arenaHandler(c echo.Context) error {
 	g := gameHub{ws: ws, available: true, send: make(chan int), game: rManager.Rooms[id]}
 
 	rManager.addToPool(g)
-	if len(rManager.freeRooms) > 0 {
-		go matchMaking()
-	} else {
-		<-rManager.freeRooms
-	}
+	go matchMaking()
 
 	go serveSocket(g, chat)
 	go listenSocket(g, id, chat)
