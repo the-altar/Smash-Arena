@@ -29,10 +29,10 @@ func listenSocket(g gameHub, id string, chat chan int) {
 				g.send <- 2
 				fmt.Println("Sent channel!")
 			case 3:
-				fmt.Println(arenas[id])
+				fmt.Println(rManager.Rooms[id])
 			}
 		} else {
-			delete(arenas, id)
+			delete(rManager.Rooms, id)
 			chat <- 1
 			break
 		}
