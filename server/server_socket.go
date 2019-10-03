@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func matchmake() bool {
+func matchmake() {
 	for i := 1; i < rManager.poolSize(); i++ {
 		_, g1 := rManager.poolPop()
 		_, g2 := rManager.poolPop()
@@ -12,7 +12,7 @@ func matchmake() bool {
 		g1.joinEnemy(g2.game.GetTeam(), g2.game.GetPlayer())
 		g2.joinEnemy(g1.game.GetTeam(), g1.game.GetPlayer())
 	}
-	return false
+	return
 }
 
 func listenSocket(g gameHub, id string, chat chan int) {

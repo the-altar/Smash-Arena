@@ -71,7 +71,7 @@ type (
 	roomManager struct {
 		Rooms     map[string]*engine.GameRoom
 		GamePool  []gameHub
-		freeRooms chan bool
+		freeRooms bool
 	}
 )
 
@@ -98,7 +98,7 @@ func matchMaking() {
 
 		if rManager.poolSize() < 1 {
 			fmt.Println("Killing process...")
-			rManager.freeRooms <- false
+			rManager.makeBusy(false)
 			return
 		}
 	}
@@ -107,7 +107,7 @@ func matchMaking() {
 func (r *roomManager) begin() {
 	r.Rooms = make(map[string]*engine.GameRoom)
 	r.GamePool = make([]gameHub, 0)
-	r.freeRooms = make(chan bool)
+	r.freeRooms = false
 }
 
 func (r *roomManager) createRoom(req *startGameReq) {
@@ -126,6 +126,19 @@ func (r *roomManager) poolSize() int {
 	size := len(r.GamePool)
 	mutex.Unlock()
 	return size
+}
+
+func (r *roomManager) makeBusy(f bool) {
+	mutex.Lock()
+	r.freeRooms = f
+	mutex.Unlock()
+}
+
+func (r roomManager) isFree() bool {
+	mutex.Lock()
+	f := r.freeRooms
+	mutex.Unlock()
+	return f
 }
 
 func (r *roomManager) poolPop() (int, gameHub) {
