@@ -2,6 +2,7 @@ package server
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"smash/engine"
 	"sync"
@@ -72,6 +73,14 @@ type (
 // InitServer starts the server
 func InitServer(port string, dbase *sql.DB) {
 	db = dbase
+	go func() {
+		for {
+			matchmake()
+			fmt.Println("Ran matchmaking")
+			time.Sleep(10 * time.Second)
+		}
+	}()
+
 	server.Use(middleware.CORS())
 	server.Static("/", "static")
 	server.File("/", "static/index.html")
@@ -81,10 +90,4 @@ func InitServer(port string, dbase *sql.DB) {
 	server.HideBanner = true
 	server.Logger.Fatal(server.Start(":" + port))
 
-	go func() {
-		for {
-			matchmake()
-			time.Sleep(10 * time.Second)
-		}
-	}()
 }
