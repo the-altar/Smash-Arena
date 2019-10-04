@@ -4,9 +4,9 @@ import "fmt"
 
 // Damage is a damaging effect struct
 type Damage struct {
-	Value    int
-	Tick     bool
-	Duration int
+	Value    int  `json:"value"`
+	Tick     bool `json:"tick"`
+	Duration int  `json:"duration"`
 }
 
 // Exe executes the effect

@@ -9,13 +9,13 @@ func matchmake() {
 		_, g1 := rManager.poolPop()
 		_, g2 := rManager.poolPop()
 
-		g1.joinEnemy(g2.game.GetTeam(), g2.game.GetPlayer())
-		g2.joinEnemy(g1.game.GetTeam(), g1.game.GetPlayer())
+		g1.joinEnemy(g2.Game.GetTeam(), g2.Game.GetPlayer())
+		g2.joinEnemy(g1.Game.GetTeam(), g1.Game.GetPlayer())
 	}
 	return
 }
 
-func listenSocket(g gameHub, id string, chat chan int) {
+func listenSocket(g *gameHub, id string, chat chan int) {
 	clientMsg := clientMessageGame{}
 
 	defer g.ws.Close()
@@ -32,38 +32,35 @@ func listenSocket(g gameHub, id string, chat chan int) {
 				fmt.Println(rManager.Rooms[id])
 			}
 		} else {
-			delete(rManager.Rooms, id)
-			chat <- 1
+			chat <- 3
 			break
 		}
 	}
 }
 
-func serveSocket(g gameHub, chat chan int) {
+func serveSocket(g *gameHub, chat chan int) {
 	defer g.ws.Close()
+	messageGS := &clientMessageGame{}
+
 	for {
 		select {
-		case msg := <-g.send: // this channel tells me when a message is received from the client
-			fmt.Println(msg)
+		case msg := <-g.send: // this ccl
 			g.ws.WriteJSON(clientMessageGame{
 				Client: "I received your message now stfu!",
 				Code:   msg,
 			})
-		case isFull := <-g.game.Full: // the Full channel tells our code when the client's gameroom has found a match'
-			if isFull {
-				g.ws.WriteJSON(clientMessageGame{
-					Client: "You've joined a room!",
-					Code:   1,
-				})
-			} else {
-				g.ws.WriteJSON(clientMessageGame{
-					Client: "Nope, still waiting...",
-					Code:   0,
-				})
-			}
+		case <-g.ongoing: // this channel tells our server when two players have been matched'
+			messageGS.writeGameState(g.Game)
+			g.ws.WriteJSON(messageGS)
+
 		case <-chat: // chat tells me when the client has gone offline
-			break
+			fmt.Println("Client left :(")
+			rManager.removeFromPool(g.Game.GetPlayer())
+			rManager.deleteRoom(g.Game.GetPlayer())
+
+			fmt.Printf("Empty rooms left: %d\n", rManager.poolSize())
+			fmt.Printf("Arenas remaining: %d\n", len(rManager.Rooms))
+			return
 		}
 	}
-	fmt.Println("Listener is closed")
 }

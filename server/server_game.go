@@ -25,9 +25,9 @@ func arenaHandler(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, 0)
 	}
 
-	g := gameHub{ws: ws, available: true, send: make(chan int), game: rManager.Rooms[id]}
+	g := &gameHub{ws: ws, available: true, send: make(chan int), ongoing: make(chan bool), Game: rManager.Rooms[id]}
 
-	rManager.addToPool(g)
+	rManager.poolAppend(g)
 	func() {
 		if rManager.isFree() {
 			return

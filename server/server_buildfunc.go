@@ -6,8 +6,8 @@ import (
 )
 
 // BuildTeam builds the player's team for the game
-func buildTeam(r *startGameReq) map[int]engine.Character {
-	charMap := make(map[int]engine.Character)
+func buildTeam(r *startGameReq) map[string]engine.Character {
+	charMap := make(map[string]engine.Character)
 	teamQuery := gamedb.QueryCharData(r.TeamID)
 	rows, err := db.Query(teamQuery)
 
@@ -27,9 +27,9 @@ func buildTeam(r *startGameReq) map[int]engine.Character {
 	return charMap
 }
 
-func buildGameRoom(r *startGameReq) *engine.GameRoom {
+func buildGameRoom(r *startGameReq) engine.GameRoom {
 	team := buildTeam(r)
-	gRoom := &engine.GameRoom{}
+	gRoom := engine.GameRoom{}
 	gRoom.AddTeam(team)
 	gRoom.SetTimer(60)
 	gRoom.SetPlayer(r.UserID)
@@ -37,21 +37,21 @@ func buildGameRoom(r *startGameReq) *engine.GameRoom {
 }
 
 // BuildCharacter builds a character from our engine package
-func buildCharacter(res dbFeed, charMap map[int]engine.Character) {
-	_, ok := charMap[res.charID]
-	key := res.charID
+func buildCharacter(res dbFeed, charMap map[string]engine.Character) {
+	_, ok := charMap[res.charName]
+	key := res.charName
 	// the follwing 2 ifs are here so we don't build the same character and skill more than once
 	if !ok {
-		charMap[key] = engine.Character{key, res.charName, 100, map[int]engine.Skill{}}
+		charMap[res.charName] = engine.Character{res.charID, res.charName, 100, map[string]engine.Skill{}}
 	}
 
 	skills := charMap[key].Skills
-	_, ok = skills[res.skillID]
+	_, ok = skills[res.skillName]
 	if !ok {
-		skills[res.skillID] = engine.Skill{res.skillID, res.skillName, res.skillDescription, map[string][]engine.Effect{}}
+		skills[res.skillName] = engine.BuildSkill(res.skillID, res.skillName, res.skillDescription)
 	}
 
-	effects := skills[res.skillID].Effects
+	effects := skills[res.skillName].GetEffects()
 	_, ok = effects[res.effectName]
 	if !ok {
 		effects[res.effectName] = make([]engine.Effect, 0)
