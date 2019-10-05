@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"time"
 )
 
 func matchmake() {
@@ -33,7 +34,7 @@ func listenSocket(g *gameHub, id string, chat chan int) {
 			}
 		} else {
 			chat <- 3
-			break
+			return
 		}
 	}
 }
@@ -61,6 +62,11 @@ func serveSocket(g *gameHub, chat chan int) {
 			fmt.Printf("Empty rooms left: %d\n", rManager.poolSize())
 			fmt.Printf("Arenas remaining: %d\n", len(rManager.Rooms))
 			return
+		default:
+			go func() {
+				g.ws.WriteJSON("pong")
+				time.Sleep(40 * time.Second)
+			}()
 		}
 	}
 }
