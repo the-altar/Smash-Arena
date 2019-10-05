@@ -220,6 +220,6 @@ func (cm *clientMessageGame) writeGameState(g *engine.GameRoom) {
 	}
 
 	for key, char := range g.Enemies {
-		cm.GameState.Foes[key] = _char{char.Health, char.ID, make(map[string]_skills)}
+		cm.GameState.Foes[key] = _char{char.ID, char.Health, make(map[string]_skills)}
 	}
 }
