@@ -43,6 +43,7 @@ func listenSocket(g *gameHub, id string, chat chan int, t *time.Time) {
 
 func serveSocket(g *gameHub, chat chan int, t *time.Time) {
 	defer g.ws.Close()
+	ticker := time.NewTicker(50 * time.Second)
 	messageGS := &clientMessageGame{}
 
 	for {
@@ -64,12 +65,12 @@ func serveSocket(g *gameHub, chat chan int, t *time.Time) {
 			fmt.Printf("Empty rooms left: %d\n", rManager.poolSize())
 			fmt.Printf("Arenas remaining: %d\n", len(rManager.Rooms))
 			return
-		default:
+		case <-ticker.C:
 			go func() {
 				g.ws.WriteJSON("pong")
-				time.Sleep(60 / 2 * time.Second)
-				if time.Now().Sub(*t) > 60 {
+				if time.Now().Sub(*t) > 100 {
 					chat <- 1
+					ticker.Stop()
 				}
 			}()
 		}
