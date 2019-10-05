@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo"
 )
@@ -20,6 +21,7 @@ func startGameHandler(c echo.Context) error {
 func arenaHandler(c echo.Context) error {
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	id, chat := c.Param("id"), make(chan int)
+	var timeout time.Time
 
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, 0)
@@ -36,8 +38,8 @@ func arenaHandler(c echo.Context) error {
 		go matchMaking()
 	}()
 
-	go serveSocket(g, chat)
-	go listenSocket(g, id, chat)
+	go serveSocket(g, chat, &timeout)
+	go listenSocket(g, id, chat, &timeout)
 
 	return c.JSON(http.StatusOK, 1)
 }

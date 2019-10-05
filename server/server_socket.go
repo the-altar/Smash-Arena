@@ -16,13 +16,15 @@ func matchmake() {
 	return
 }
 
-func listenSocket(g *gameHub, id string, chat chan int) {
+func listenSocket(g *gameHub, id string, chat chan int, t *time.Time) {
 	clientMsg := clientMessageGame{}
 
 	defer g.ws.Close()
 	for {
 		if err := g.ws.ReadJSON(&clientMsg); err == nil {
 			switch clientMsg.Code {
+			case 0:
+				*t = time.Now()
 			case 1:
 				fmt.Println("God this client is annoying...")
 				g.send <- 1
@@ -39,7 +41,7 @@ func listenSocket(g *gameHub, id string, chat chan int) {
 	}
 }
 
-func serveSocket(g *gameHub, chat chan int) {
+func serveSocket(g *gameHub, chat chan int, t *time.Time) {
 	defer g.ws.Close()
 	messageGS := &clientMessageGame{}
 
@@ -65,7 +67,10 @@ func serveSocket(g *gameHub, chat chan int) {
 		default:
 			go func() {
 				g.ws.WriteJSON("pong")
-				time.Sleep(40 * time.Second)
+				time.Sleep(60 / 2 * time.Second)
+				if time.Now().Sub(*t) > 60 {
+					chat <- 1
+				}
 			}()
 		}
 	}
