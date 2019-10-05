@@ -68,7 +68,8 @@ func serveSocket(g *gameHub, chat chan int, t *time.Time) {
 		case <-ticker.C:
 			go func() {
 				g.ws.WriteJSON("pong")
-				if time.Now().Sub(*t) > 100 {
+				time.Sleep(25 * time.Second)
+				if time.Now().Sub(*t) > 50 {
 					chat <- 1
 					ticker.Stop()
 				}
