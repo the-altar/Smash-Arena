@@ -13,6 +13,12 @@ import (
 	"github.com/labstack/echo/middleware"
 )
 
+const (
+	writeWait  = 10 * time.Second
+	pongWait   = 40 * time.Second
+	pingPeriod = (pongWait * 9) / 10
+)
+
 var (
 	db       *sql.DB
 	server   *echo.Echo = echo.New()

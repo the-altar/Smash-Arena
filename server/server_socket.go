@@ -3,6 +3,8 @@ package server
 import (
 	"fmt"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func matchmake() {
@@ -16,15 +18,14 @@ func matchmake() {
 	return
 }
 
-func listenSocket(g *gameHub, id string, chat chan int, t *time.Time) {
+func listenSocket(g *gameHub, id string, chat chan int) {
 	clientMsg := clientMessageGame{}
-
 	defer g.ws.Close()
 	for {
 		if err := g.ws.ReadJSON(&clientMsg); err == nil {
 			switch clientMsg.Code {
 			case 0:
-				*t = time.Now()
+				fmt.Println(clientMsg)
 			case 1:
 				fmt.Println("God this client is annoying...")
 				g.send <- 1
@@ -41,10 +42,14 @@ func listenSocket(g *gameHub, id string, chat chan int, t *time.Time) {
 	}
 }
 
-func serveSocket(g *gameHub, chat chan int, t *time.Time) {
-	defer g.ws.Close()
-	ticker := time.NewTicker(50 * time.Second)
+func serveSocket(g *gameHub, chat chan int) {
 	messageGS := &clientMessageGame{}
+	ticker := time.NewTicker(pingPeriod)
+
+	defer func() {
+		g.ws.Close()
+		ticker.Stop()
+	}()
 
 	for {
 		select {
@@ -66,14 +71,9 @@ func serveSocket(g *gameHub, chat chan int, t *time.Time) {
 			fmt.Printf("Arenas remaining: %d\n", len(rManager.Rooms))
 			return
 		case <-ticker.C:
-			go func() {
-				g.ws.WriteJSON("pong")
-				time.Sleep(25 * time.Second)
-				if time.Now().Sub(*t) > 50 {
-					chat <- 1
-					ticker.Stop()
-				}
-			}()
+			if err := g.ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+				chat <- 1
+			}
 		}
 	}
 }
