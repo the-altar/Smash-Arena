@@ -12,20 +12,44 @@ func matchmake() {
 		_, g1 := rManager.poolPop()
 		_, g2 := rManager.poolPop()
 
-		g1.joinEnemy(g2.Game.GetTeam(), g2.Game.GetPlayer())
-		g2.joinEnemy(g1.Game.GetTeam(), g1.Game.GetPlayer())
+		g1.joinEnemy(g2.Game.GetTeam(), g2.Game.GetPlayer(), false)
+		g2.joinEnemy(g1.Game.GetTeam(), g1.Game.GetPlayer(), true)
+
+		rManager.GamePool.active[g1.Game.GetPlayer()] = g1
+		rManager.GamePool.active[g2.Game.GetPlayer()] = g2
 	}
+
 	return
 }
 
 func listenSocket(g *gameHub, id string, chat chan int) {
 	clientMsg := clientMessageGame{}
-	defer g.ws.Close()
+	timer := time.NewTicker(20 * time.Second)
+	fanOut := make(chan bool)
+
+	defer func() {
+		g.ws.Close()
+		timer.Stop()
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-timer.C:
+				switchTurns(g)
+			case <-fanOut:
+				return
+			}
+		}
+	}()
+
 	for {
 		if err := g.ws.ReadJSON(&clientMsg); err == nil {
 			switch clientMsg.Code {
 			case 0:
-				fmt.Println(clientMsg)
+				timer.Stop()
+				timer = time.NewTicker(20 * time.Second)
+				switchTurns(g)
 			case 1:
 				fmt.Println("God this client is annoying...")
 				g.send <- 1
@@ -37,6 +61,7 @@ func listenSocket(g *gameHub, id string, chat chan int) {
 			}
 		} else {
 			chat <- 3
+			fanOut <- true
 			return
 		}
 	}
@@ -58,17 +83,14 @@ func serveSocket(g *gameHub, chat chan int) {
 				Client: "I received your message now stfu!",
 				Code:   msg,
 			})
-		case <-g.ongoing: // this channel tells our server when two players have been matched'
-			messageGS.writeGameState(g.Game)
-			g.ws.WriteJSON(messageGS)
-
+		case status := <-g.ongoing: // this channel tells our server when two players have been matched'
+			if status {
+				fmt.Println("Working hard!")
+				messageGS.writeGameState(g.Game)
+				g.ws.WriteJSON(messageGS)
+			}
 		case <-chat: // chat tells me when the client has gone offline
-			fmt.Println("Client left :(")
-			rManager.removeFromPool(g.Game.GetPlayer())
-			rManager.deleteRoom(g.Game.GetPlayer())
-
-			fmt.Printf("Empty rooms left: %d\n", rManager.poolSize())
-			fmt.Printf("Arenas remaining: %d\n", len(rManager.Rooms))
+			endGame(g)
 			return
 		case <-ticker.C:
 			if err := g.ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
@@ -76,4 +98,21 @@ func serveSocket(g *gameHub, chat chan int) {
 			}
 		}
 	}
+}
+
+func endGame(g *gameHub) {
+	fmt.Println("Client left :(")
+	rManager.removeFromPool(g.Game.GetPlayer())
+	rManager.deleteRoom(g.Game.GetPlayer())
+
+	delete(rManager.GamePool.active, g.Game.GetPlayer())
+
+	fmt.Printf("Empty rooms left: %d\n", rManager.poolSize())
+	fmt.Printf("Arenas remaining: %d\n", len(rManager.Rooms))
+}
+
+func switchTurns(g *gameHub) {
+	fmt.Println("SWITCH! from: server_socket.go switchTurns() ")
+	g.Game.YourTurn = !g.Game.YourTurn
+	g.ongoing <- true
 }

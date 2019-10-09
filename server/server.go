@@ -47,6 +47,7 @@ type (
 	}
 
 	gameState struct {
+		YourTurn bool             `json:"yourturn"`
 		Opponent string           `json:"opponent"`
 		Foes     map[string]_char `json:"foes"`
 		Friends  map[string]_char `json:"friends"`
@@ -94,8 +95,9 @@ type (
 	roomManager struct {
 		Rooms    map[string]*engine.GameRoom
 		GamePool struct {
-			games   []*gameHub
-			players map[string]bool
+			active   map[string]*gameHub
+			inactive []*gameHub
+			players  map[string]bool
 		}
 		freeRooms bool
 	}
@@ -116,7 +118,7 @@ func InitServer(port string, dbase *sql.DB) {
 	server.Logger.Fatal(server.Start(":" + port))
 }
 
-func matchMaking() {
+func (r *roomManager) matchMaking() {
 	for {
 		fmt.Println("Matchmaking...")
 		matchmake()
@@ -132,7 +134,8 @@ func matchMaking() {
 
 func (r *roomManager) begin() {
 	r.Rooms = make(map[string]*engine.GameRoom)
-	r.GamePool.games, r.GamePool.players = make([]*gameHub, 0), make(map[string]bool)
+	r.GamePool.inactive, r.GamePool.players = make([]*gameHub, 0), make(map[string]bool)
+	r.GamePool.active = make(map[string]*gameHub)
 	r.freeRooms = false
 }
 
@@ -149,10 +152,10 @@ func (r *roomManager) removeFromPool(id string) {
 	mutex.Lock()
 	_, ok := r.GamePool.players[id]
 	if ok {
-		for i, n := range r.GamePool.games {
+		for i, n := range r.GamePool.inactive {
 			if n.Game.Player == id {
 				delete(r.GamePool.players, n.Game.Player)
-				r.GamePool.games = append(r.GamePool.games[:i], r.GamePool.games[i+1:]...)
+				r.GamePool.inactive = append(r.GamePool.inactive[:i], r.GamePool.inactive[i+1:]...)
 				mutex.Unlock()
 				return
 			}
@@ -165,14 +168,14 @@ func (r *roomManager) removeFromPool(id string) {
 
 func (r *roomManager) poolAppend(g *gameHub) {
 	mutex.Lock()
-	r.GamePool.games = append(r.GamePool.games, g)
+	r.GamePool.inactive = append(r.GamePool.inactive, g)
 	r.GamePool.players[g.Game.GetPlayer()] = true
 	mutex.Unlock()
 }
 
 func (r *roomManager) poolSize() int {
 	mutex.Lock()
-	size := len(r.GamePool.games)
+	size := len(r.GamePool.inactive)
 	mutex.Unlock()
 	return size
 }
@@ -195,9 +198,9 @@ func (r *roomManager) poolPop() (int, *gameHub) {
 	if s > 0 {
 		mutex.Lock()
 
-		x := r.GamePool.games[s-1]
+		x := r.GamePool.inactive[s-1]
 		delete(r.GamePool.players, x.Game.GetPlayer())
-		r.GamePool.games = r.GamePool.games[:s-1]
+		r.GamePool.inactive = r.GamePool.inactive[:s-1]
 
 		fmt.Println("popped, players left: ", r.GamePool.players)
 		mutex.Unlock()
@@ -207,16 +210,18 @@ func (r *roomManager) poolPop() (int, *gameHub) {
 	return 0, &gameHub{}
 }
 
-func (gh *gameHub) joinEnemy(t map[string]engine.Character, pID string) {
+func (gh *gameHub) joinEnemy(t map[string]engine.Character, pID string, turn bool) {
 	gh.Game.SetOpponent(pID)
 	gh.Game.AddEnemies(t)
+	gh.Game.SetTimer(60)
+	gh.Game.YourTurn = turn
 	gh.ongoing <- true
 }
 
 func (cm *clientMessageGame) writeGameState(g *engine.GameRoom) {
 	cm.Client = g.Player
 	cm.Code = 1
-	cm.GameState = gameState{g.Opponent, make(map[string]_char), make(map[string]_char)}
+	cm.GameState = gameState{g.YourTurn, g.Opponent, make(map[string]_char), make(map[string]_char)}
 
 	for key, char := range g.GetTeam() {
 		cm.GameState.Friends[key] = _char{char.ID, char.Health, make(map[string]_skills)}

@@ -33,7 +33,7 @@ func arenaHandler(c echo.Context) error {
 			return
 		}
 		rManager.makeBusy(true)
-		go matchMaking()
+		go rManager.matchMaking()
 	}()
 
 	go serveSocket(g, chat)
