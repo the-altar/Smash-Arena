@@ -21,6 +21,6 @@ func main() {
 
 	port := os.Getenv("PORT")
 
-	Server.Logger.Fatal(Server.Start(port))
+	Server.Logger.Fatal(Server.Start(":" + port))
 
 }
