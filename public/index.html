@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+
+<body>
+    <button id="btn">Connect to server</button>
+    <script>
+
+        document.getElementById("btn").addEventListener('click', function() {
+            var loc = window.location;
+            var uri = 'ws:';
+
+            if (loc.protocol === 'https:') {
+                uri = 'wss:';
+            }
+            uri += '//' + loc.host;
+            uri += loc.pathname + 'ws/' + Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 5);
+            ws = new WebSocket(uri);
+            ws.onmessage = function(env){
+                console.log(env.data)
+            }
+        })
+
+    </script>
+</body>
+
+</html>
