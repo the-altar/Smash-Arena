@@ -23,7 +23,7 @@
             uri += loc.pathname + 'ws/' + Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 5);
             ws = new WebSocket(uri);
             ws.onmessage = function(env){
-                console.log(env.data)
+               console.log("got something")
             }
         })
 

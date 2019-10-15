@@ -1,7 +1,7 @@
 package providers
 
 import (
-	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -15,7 +15,7 @@ var (
 	// Conn manages our connections
 	Conn = &ConnProvider{
 		connections: make([]*connection, 0),
-		connected:   make(map[string]bool),
+		connected:   make(map[string]interface{}),
 		rooms:       make(map[string]*rooms),
 	}
 	// PairUP connections that are available
@@ -43,55 +43,10 @@ type (
 	ConnProvider struct {
 		lock        sync.Mutex
 		connections []*connection
-		connected   map[string]bool
+		connected   map[string]interface{}
 		rooms       map[string]*rooms
 	}
 )
-
-func (m *MatchMake) doWork() {
-	fmt.Println("Matchmaking.")
-	for Conn.Size() >= 2 {
-		c1 := Conn.pop()
-		c2 := Conn.pop()
-
-		v := [2]*connection{c1, c2}
-
-		Conn.createRoom(v)
-	}
-
-	if Conn.Size() == 0 {
-		m.isBusy = false
-		return
-	}
-	go Conn.keepalive(60 * time.Second)
-	time.Sleep(10 * time.Second)
-	go m.doWork()
-}
-
-func (cp *ConnProvider) createRoom(r [2]*connection) {
-	id, err := uuid.NewUUID()
-	if err != nil {
-		panic("couldn't create ID")
-	}
-	gid := id.String()
-	rs := &rooms{player: r, gid: gid}
-	cp.rooms[gid] = rs
-
-	rs.player[0].isready <- gid
-	rs.player[1].isready <- gid
-
-	return
-}
-
-func (cp *ConnProvider) keepalive(timeout time.Duration) {
-	for i := range cp.connections {
-		err := cp.connections[i].client.WriteJSON(websocket.PingMessage)
-		if err != nil {
-			fmt.Println("error: ", err)
-			cp.connections[i].client.Close()
-		}
-	}
-}
 
 // Init initializes a connection and commits it to memory, afterwards
 // the Conn provider will recognize the player using cp.connected[string]
@@ -107,38 +62,27 @@ func (cp *ConnProvider) Init(c echo.Context) error {
 		return err
 	}
 
-	cp.connected[pid] = true
+	cp.setConn(pid, true)
+
 	conn := &connection{ws, pid, make(chan string)}
 
-	cp.lock.Lock()
-	cp.connections = append(cp.connections, conn)
-	cp.lock.Unlock()
+	cp.append(conn)
 
 	go pairUP.Run(conn)
+
+	// clients waiting for the goroutine to finish wait here
+	cp.setConn(pid, <-conn.isready)
+
 	return nil
 }
 
 // Run matchmaking function
 func (m *MatchMake) Run(conn *connection) {
 	if m.isBusy {
-		fmt.Println(<-conn.isready)
 		return
 	}
-
 	m.isBusy = true
 	go m.doWork()
-	fmt.Println(<-conn.isready)
-}
-
-// Pops a connection from cp.connections[]
-func (cp *ConnProvider) pop() *connection {
-	cp.lock.Lock()
-	defer cp.lock.Unlock()
-	var conn *connection
-
-	conn, cp.connections = cp.connections[0], cp.connections[1:]
-
-	return conn
 }
 
 // Size function returns how many connections we have
@@ -150,9 +94,101 @@ func (cp *ConnProvider) Size() int {
 	return size
 }
 
+// checks if a user is Connected to our server or not. Returns true or false
 func (cp *ConnProvider) isConnected(pid string) bool {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
 	_, ok := cp.connected[pid]
 	return ok
+}
+
+// this function is responsible for actually processing the matchmaking
+func (m *MatchMake) doWork() {
+	for Conn.Size() >= 2 {
+		c1 := Conn.pop()
+		c2 := Conn.pop()
+
+		v := [2]*connection{c1, c2}
+
+		Conn.createRoom(v)
+	}
+
+	if Conn.Size() == 0 {
+		m.isBusy = false
+		return
+	}
+
+	Conn.keepalive()
+	time.Sleep(10 * time.Second)
+	go m.doWork()
+}
+
+// creates a room with 2 players each mapped by a UUID string
+func (cp *ConnProvider) createRoom(r [2]*connection) {
+	id, err := uuid.NewUUID()
+	if err != nil {
+		panic("couldn't create ID")
+	}
+	gid := id.String()
+	rs := &rooms{player: r, gid: gid}
+	cp.rooms[gid] = rs
+
+	rs.player[0].isready <- gid
+	rs.player[1].isready <- gid
+
+	return
+}
+
+// checks if clients are still connected. If a connection goes missing, remove all traces of it from the server
+func (cp *ConnProvider) keepalive() {
+	for v := range cp.connections {
+
+		go func(c *connection) {
+			err := c.client.WriteMessage(websocket.PingMessage, []byte("ping"))
+			if err != nil {
+				log.Fatal(err)
+			}
+		}(cp.connections[v])
+
+	}
+}
+
+// set the connection status. Bool and String values are acccepted in the second parameter.
+func (cp *ConnProvider) setConn(id string, val interface{}) {
+	cp.lock.Lock()
+	cp.connected[id] = val
+	cp.lock.Unlock()
+}
+
+// appends a connection to the connection stack
+func (cp *ConnProvider) append(conn *connection) {
+	cp.lock.Lock()
+	cp.connections = append(cp.connections, conn)
+	cp.lock.Unlock()
+}
+
+// Pops a connection from the connection stack
+func (cp *ConnProvider) pop() *connection {
+	cp.lock.Lock()
+	defer cp.lock.Unlock()
+	var conn *connection
+
+	conn, cp.connections = cp.connections[0], cp.connections[1:]
+
+	return conn
+}
+
+// Removes a connection from stack with a given "pid"
+func (cp *ConnProvider) remove(pid string) {
+	cp.lock.Lock()
+	defer cp.lock.Unlock()
+
+	for v := range cp.connections {
+		if cp.connections[v].pid == pid {
+			cp.connections = append(cp.connections[:v], cp.connections[v+1:]...)
+			break
+		}
+	}
+
+	delete(cp.connected, pid)
 }
