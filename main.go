@@ -15,7 +15,7 @@ func main() {
 	Server.File("/", "public/index.html")
 
 	Server.GET("ws/:id", func(c echo.Context) error {
-		go providers.Conn.Init(c)
+		providers.Conn.Init(c)
 		return nil
 	})
 
