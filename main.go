@@ -1,26 +1,22 @@
 package main
 
 import (
-	"os"
-
-	"github.com/labstack/echo"
+	"github.com/gin-gonic/gin"
 	"github.com/the-altar/Smash-Arena/providers"
 )
 
 func main() {
 
-	Server := echo.New()
-	Server.HideBanner = true
-
-	Server.File("/", "public/index.html")
-
-	Server.GET("ws/:id", func(c echo.Context) error {
-		providers.Conn.Init(c)
-		return nil
+	g := gin.New()
+	g.Static("/public", "./public")
+	g.StaticFile("/", "public/index.html")
+	g.GET("ws/:id", func(g *gin.Context) {
+		v := make(chan bool)
+		go providers.Conn.Init(g, v)
+		providers.Conn.PumpOut(g.Param("id"), <-v)
+		return
 	})
 
-	port := os.Getenv("PORT")
-
-	Server.Logger.Fatal(Server.Start(":" + port))
+	g.Run()
 
 }

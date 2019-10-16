@@ -1,13 +1,13 @@
 package providers
 
 import (
-	"log"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/labstack/echo"
 )
 
 var (
@@ -15,7 +15,7 @@ var (
 	// Conn manages our connections
 	Conn = &ConnProvider{
 		connections: make([]*connection, 0),
-		connected:   make(map[string]interface{}),
+		connected:   make(map[string]*connection),
 		rooms:       make(map[string]*rooms),
 	}
 	// PairUP connections that are available
@@ -29,9 +29,11 @@ type (
 	}
 
 	connection struct {
-		client  *websocket.Conn
-		pid     string
-		isready chan string
+		client      *websocket.Conn
+		pid         string
+		gid         string
+		isready     chan string
+		isdestroyed chan bool
 	}
 
 	rooms struct {
@@ -43,7 +45,7 @@ type (
 	ConnProvider struct {
 		lock        sync.Mutex
 		connections []*connection
-		connected   map[string]interface{}
+		connected   map[string]*connection
 		rooms       map[string]*rooms
 	}
 )
@@ -51,38 +53,40 @@ type (
 // Init initializes a connection and commits it to memory, afterwards
 // the Conn provider will recognize the player using cp.connected[string]
 // and the connection will have been appened to the cp.connection stack.
-func (cp *ConnProvider) Init(c echo.Context) error {
-	pid := c.Param("id")
+func (cp *ConnProvider) Init(g *gin.Context, created chan bool) error {
+	fmt.Println("-> INIT HAS BEGUN")
+	pid := g.Param("id")
 	if cp.isConnected(pid) {
-		return echo.ErrForbidden
+		fmt.Println("User already connected")
+		return g.Error(nil)
 	}
 
-	ws, err := upgrade.Upgrade(c.Response(), c.Request(), nil)
+	ws, err := upgrade.Upgrade(g.Writer, g.Request, nil)
 	if err != nil {
+		fmt.Println("Failed to upgrade connection")
 		return err
 	}
 
-	cp.setConn(pid, true)
+	conn := &connection{ws, pid, "", make(chan string), make(chan bool)}
 
-	conn := &connection{ws, pid, make(chan string)}
+	cp.setConn(pid, conn)
+
+	created <- true
 
 	cp.append(conn)
 
-	go pairUP.Run(conn)
-
-	// clients waiting for the goroutine to finish wait here
-	cp.setConn(pid, <-conn.isready)
-
+	go pairUP.run(conn)
+	fmt.Println("-> CLOSED INIT")
 	return nil
 }
 
-// Run matchmaking function
-func (m *MatchMake) Run(conn *connection) {
-	if m.isBusy {
-		return
-	}
-	m.isBusy = true
-	go m.doWork()
+// PumpOut pumps out reading and writing from and to our client
+func (cp *ConnProvider) PumpOut(pid string, created bool) {
+
+	fmt.Println("Pumping out for ", pid)
+	go writePump(cp.fetch(pid), 0)
+	fmt.Println("locked")
+	return
 }
 
 // Size function returns how many connections we have
@@ -102,8 +106,22 @@ func (cp *ConnProvider) isConnected(pid string) bool {
 	return ok
 }
 
+// Run matchmaking function
+func (m *MatchMake) run(conn *connection) {
+	fmt.Println("-> MM.RUN HAS BEGUN")
+	if m.isBusy {
+		fmt.Println("-> MM.RUN HAS BEEN CLOSED")
+		return
+	}
+	m.isBusy = true
+	go m.doWork()
+	fmt.Println("MM.RUN HAS BEEN CLOSED")
+	return
+}
+
 // this function is responsible for actually processing the matchmaking
 func (m *MatchMake) doWork() {
+	fmt.Println("-> doWork BEGUN")
 	for Conn.Size() >= 2 {
 		c1 := Conn.pop()
 		c2 := Conn.pop()
@@ -115,12 +133,13 @@ func (m *MatchMake) doWork() {
 
 	if Conn.Size() == 0 {
 		m.isBusy = false
+		fmt.Println("-> doWork HAS BEEN CLOSED")
 		return
 	}
-
-	Conn.keepalive()
+	fmt.Println("Attempted to matchmake")
 	time.Sleep(10 * time.Second)
 	go m.doWork()
+	return
 }
 
 // creates a room with 2 players each mapped by a UUID string
@@ -139,22 +158,8 @@ func (cp *ConnProvider) createRoom(r [2]*connection) {
 	return
 }
 
-// checks if clients are still connected. If a connection goes missing, remove all traces of it from the server
-func (cp *ConnProvider) keepalive() {
-	for v := range cp.connections {
-
-		go func(c *connection) {
-			err := c.client.WriteMessage(websocket.PingMessage, []byte("ping"))
-			if err != nil {
-				log.Fatal(err)
-			}
-		}(cp.connections[v])
-
-	}
-}
-
 // set the connection status. Bool and String values are acccepted in the second parameter.
-func (cp *ConnProvider) setConn(id string, val interface{}) {
+func (cp *ConnProvider) setConn(id string, val *connection) {
 	cp.lock.Lock()
 	cp.connected[id] = val
 	cp.lock.Unlock()
@@ -165,6 +170,11 @@ func (cp *ConnProvider) append(conn *connection) {
 	cp.lock.Lock()
 	cp.connections = append(cp.connections, conn)
 	cp.lock.Unlock()
+}
+
+func (cp *ConnProvider) fetch(pid string) *connection {
+	c := cp.connected[pid]
+	return c
 }
 
 // Pops a connection from the connection stack
@@ -191,4 +201,19 @@ func (cp *ConnProvider) remove(pid string) {
 	}
 
 	delete(cp.connected, pid)
+}
+
+func writePump(c *connection, counter int) {
+	fmt.Println("Write pumping...")
+	for {
+		select {
+		case c.gid = <-c.isready:
+			fmt.Println(c.pid, " in room ", c.gid, " is ready to be closed")
+			c.client.Close()
+			return
+		case <-time.After(54 * time.Second):
+			fmt.Println("Timedout")
+			c.client.WriteJSON("ping")
+		}
+	}
 }
