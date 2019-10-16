@@ -14,7 +14,7 @@ var (
 	upgrade = websocket.Upgrader{}
 	// Conn manages our connections
 	Conn = &ConnProvider{
-		connections: make([]*connection, 0),
+		connections: make([]string, 0),
 		connected:   make(map[string]*connection),
 		rooms:       make(map[string]*rooms),
 	}
@@ -33,18 +33,18 @@ type (
 		pid         string
 		gid         string
 		isready     chan string
-		isdestroyed chan bool
+		isdestroyed chan string
 	}
 
 	rooms struct {
 		sync   sync.Mutex
-		player [2]*connection
+		player []*connection
 		gid    string
 	}
 	// ConnProvider manages our connections
 	ConnProvider struct {
 		lock        sync.Mutex
-		connections []*connection
+		connections []string
 		connected   map[string]*connection
 		rooms       map[string]*rooms
 	}
@@ -54,38 +54,36 @@ type (
 // the Conn provider will recognize the player using cp.connected[string]
 // and the connection will have been appened to the cp.connection stack.
 func (cp *ConnProvider) Init(g *gin.Context, created chan bool) error {
-	fmt.Println("-> INIT HAS BEGUN")
+
 	pid := g.Param("id")
 	if cp.isConnected(pid) {
-		fmt.Println("User already connected")
 		return g.Error(nil)
 	}
 
 	ws, err := upgrade.Upgrade(g.Writer, g.Request, nil)
 	if err != nil {
-		fmt.Println("Failed to upgrade connection")
+		fmt.Println(err)
 		return err
 	}
 
-	conn := &connection{ws, pid, "", make(chan string), make(chan bool)}
+	conn := &connection{ws, pid, "", make(chan string), make(chan string)}
 
 	cp.setConn(pid, conn)
 
 	created <- true
 
-	cp.append(conn)
+	cp.append(conn.pid)
 
 	go pairUP.run(conn)
-	fmt.Println("-> CLOSED INIT")
 	return nil
 }
 
 // PumpOut pumps out reading and writing from and to our client
 func (cp *ConnProvider) PumpOut(pid string, created bool) {
+	r := time.Now()
 
-	fmt.Println("Pumping out for ", pid)
-	go writePump(cp.fetch(pid), 0)
-	fmt.Println("locked")
+	go writePump(cp.fetch(pid), 0, r)
+	go readPump(cp.fetch(pid), 0, r)
 	return
 }
 
@@ -108,25 +106,22 @@ func (cp *ConnProvider) isConnected(pid string) bool {
 
 // Run matchmaking function
 func (m *MatchMake) run(conn *connection) {
-	fmt.Println("-> MM.RUN HAS BEGUN")
 	if m.isBusy {
-		fmt.Println("-> MM.RUN HAS BEEN CLOSED")
 		return
 	}
 	m.isBusy = true
 	go m.doWork()
-	fmt.Println("MM.RUN HAS BEEN CLOSED")
 	return
 }
 
 // this function is responsible for actually processing the matchmaking
 func (m *MatchMake) doWork() {
-	fmt.Println("-> doWork BEGUN")
 	for Conn.Size() >= 2 {
+		v := make([]*connection, 0)
 		c1 := Conn.pop()
 		c2 := Conn.pop()
 
-		v := [2]*connection{c1, c2}
+		v = append(v, Conn.connected[c1], Conn.connected[c2])
 
 		Conn.createRoom(v)
 	}
@@ -143,7 +138,7 @@ func (m *MatchMake) doWork() {
 }
 
 // creates a room with 2 players each mapped by a UUID string
-func (cp *ConnProvider) createRoom(r [2]*connection) {
+func (cp *ConnProvider) createRoom(r []*connection) {
 	id, err := uuid.NewUUID()
 	if err != nil {
 		panic("couldn't create ID")
@@ -166,7 +161,7 @@ func (cp *ConnProvider) setConn(id string, val *connection) {
 }
 
 // appends a connection to the connection stack
-func (cp *ConnProvider) append(conn *connection) {
+func (cp *ConnProvider) append(conn string) {
 	cp.lock.Lock()
 	cp.connections = append(cp.connections, conn)
 	cp.lock.Unlock()
@@ -178,41 +173,92 @@ func (cp *ConnProvider) fetch(pid string) *connection {
 }
 
 // Pops a connection from the connection stack
-func (cp *ConnProvider) pop() *connection {
+func (cp *ConnProvider) pop() string {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	var conn *connection
+	var conn string
 
 	conn, cp.connections = cp.connections[0], cp.connections[1:]
 
 	return conn
 }
 
-// Removes a connection from stack with a given "pid"
-func (cp *ConnProvider) remove(pid string) {
+// removes player from stack
+func (cp *ConnProvider) removeFromQueue(pid string) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
 
 	for v := range cp.connections {
-		if cp.connections[v].pid == pid {
+		if cp.connections[v] == pid {
 			cp.connections = append(cp.connections[:v], cp.connections[v+1:]...)
 			break
 		}
 	}
 
-	delete(cp.connected, pid)
+	delete(Conn.connected, pid)
 }
 
-func writePump(c *connection, counter int) {
+func leaveRoom(pid string, gid string) {
+	_, ok := Conn.rooms[gid]
+	fmt.Println(ok)
+
+	for v := range Conn.rooms[gid].player {
+		if Conn.rooms[gid].player[v].pid == pid {
+			Conn.rooms[gid].player = append(Conn.rooms[gid].player[:v], Conn.rooms[gid].player[v+1:]...)
+			break
+		}
+	}
+
+	delete(Conn.connected, pid)
+
+	closeDoor(gid)
+}
+
+func closeDoor(gid string) {
+	Conn.rooms[gid].sync.Lock()
+	defer Conn.rooms[gid].sync.Unlock()
+
+	r := Conn.rooms[gid]
+	if len(r.player) == 0 {
+		delete(Conn.rooms, gid)
+	}
+}
+
+func readPump(c *connection, counter int, lastResponse time.Time) {
+	type res struct {
+		data string
+	}
+	r := &res{}
+	for {
+		err := c.client.ReadJSON(r)
+		if err != nil {
+			fmt.Println("hey", err)
+			c.isdestroyed <- c.gid
+			return
+		}
+	}
+}
+
+func writePump(c *connection, counter int, lastResponse time.Time) {
 	fmt.Println("Write pumping...")
 	for {
 		select {
+
 		case c.gid = <-c.isready:
-			fmt.Println(c.pid, " in room ", c.gid, " is ready to be closed")
+			leaveRoom(c.pid, c.gid)
 			c.client.Close()
 			return
+
+		case <-c.isdestroyed:
+			err := c.client.Close()
+			if err != nil {
+				fmt.Println("Err: ", err)
+			}
+			Conn.removeFromQueue(c.pid)
+
+			return
+
 		case <-time.After(54 * time.Second):
-			fmt.Println("Timedout")
 			c.client.WriteJSON("ping")
 		}
 	}

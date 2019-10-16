@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 	"github.com/the-altar/Smash-Arena/providers"
 )
@@ -14,7 +16,7 @@ func main() {
 		v := make(chan bool)
 		go providers.Conn.Init(g, v)
 		providers.Conn.PumpOut(g.Param("id"), <-v)
-		return
+		fmt.Println("Exit")
 	})
 
 	g.Run()
