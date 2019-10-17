@@ -43,7 +43,7 @@ type (
 	}
 	// ConnProvider manages our connections
 	ConnProvider struct {
-		lock        sync.Mutex
+		mu          sync.Mutex
 		connections []string
 		connected   map[string]*connection
 		rooms       map[string]*rooms
@@ -89,17 +89,17 @@ func (cp *ConnProvider) PumpOut(pid string, created bool) {
 
 // Size function returns how many connections we have
 func (cp *ConnProvider) Size() int {
-	cp.lock.Lock()
+	cp.mu.Lock()
 	size := len(cp.connections)
-	cp.lock.Unlock()
+	cp.mu.Unlock()
 
 	return size
 }
 
 // checks if a user is Connected to our server or not. Returns true or false
 func (cp *ConnProvider) isConnected(pid string) bool {
-	cp.lock.Lock()
-	defer cp.lock.Unlock()
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
 	_, ok := cp.connected[pid]
 	return ok
 }
@@ -124,15 +124,14 @@ func (m *MatchMake) doWork() {
 		v = append(v, Conn.connected[c1], Conn.connected[c2])
 
 		Conn.createRoom(v)
+		fmt.Println(Conn.Size())
 	}
 
 	if Conn.Size() == 0 {
 		m.isBusy = false
-		fmt.Println("-> doWork HAS BEEN CLOSED")
 		return
 	}
-	fmt.Println("Attempted to matchmake")
-	time.Sleep(10 * time.Second)
+	time.Sleep(20 * time.Second)
 	go m.doWork()
 	return
 }
@@ -155,16 +154,16 @@ func (cp *ConnProvider) createRoom(r []*connection) {
 
 // set the connection status. Bool and String values are acccepted in the second parameter.
 func (cp *ConnProvider) setConn(id string, val *connection) {
-	cp.lock.Lock()
+	cp.mu.Lock()
 	cp.connected[id] = val
-	cp.lock.Unlock()
+	cp.mu.Unlock()
 }
 
 // appends a connection to the connection stack
 func (cp *ConnProvider) append(conn string) {
-	cp.lock.Lock()
+	cp.mu.Lock()
 	cp.connections = append(cp.connections, conn)
-	cp.lock.Unlock()
+	cp.mu.Unlock()
 }
 
 func (cp *ConnProvider) fetch(pid string) *connection {
@@ -174,8 +173,8 @@ func (cp *ConnProvider) fetch(pid string) *connection {
 
 // Pops a connection from the connection stack
 func (cp *ConnProvider) pop() string {
-	cp.lock.Lock()
-	defer cp.lock.Unlock()
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
 	var conn string
 
 	conn, cp.connections = cp.connections[0], cp.connections[1:]
@@ -183,35 +182,38 @@ func (cp *ConnProvider) pop() string {
 	return conn
 }
 
-// removes player from stack
-func (cp *ConnProvider) removeFromQueue(pid string) {
-	cp.lock.Lock()
-	defer cp.lock.Unlock()
+// removes player from server
+func (cp *ConnProvider) clearConn(pid string, gid string) {
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
 
-	for v := range cp.connections {
-		if cp.connections[v] == pid {
-			cp.connections = append(cp.connections[:v], cp.connections[v+1:]...)
-			break
+	_, ok := cp.rooms[gid]
+
+	if ok {
+		for v := range Conn.rooms[gid].player {
+			if Conn.rooms[gid].player[v].pid == pid {
+				Conn.rooms[gid].player = append(Conn.rooms[gid].player[:v], Conn.rooms[gid].player[v+1:]...)
+				break
+			}
+		}
+		closeDoor(gid)
+	} else {
+		for v := range cp.connections {
+			if cp.connections[v] == pid {
+				cp.connections = append(cp.connections[:v], cp.connections[v+1:]...)
+				break
+			}
 		}
 	}
 
-	delete(Conn.connected, pid)
-}
+	delete(cp.connected, pid)
 
-func leaveRoom(pid string, gid string) {
-	_, ok := Conn.rooms[gid]
-	fmt.Println(ok)
-
-	for v := range Conn.rooms[gid].player {
-		if Conn.rooms[gid].player[v].pid == pid {
-			Conn.rooms[gid].player = append(Conn.rooms[gid].player[:v], Conn.rooms[gid].player[v+1:]...)
-			break
-		}
-	}
-
-	delete(Conn.connected, pid)
-
-	closeDoor(gid)
+	fmt.Println("CURRENT STATUS: ")
+	fmt.Println("CONNECTIONS:", len(Conn.connected))
+	fmt.Println("ROOMS: ", len(Conn.rooms))
+	fmt.Println("QUEUE: ", len(Conn.connections))
+	fmt.Printf("-------------\n\n")
+	return
 }
 
 func closeDoor(gid string) {
@@ -222,6 +224,7 @@ func closeDoor(gid string) {
 	if len(r.player) == 0 {
 		delete(Conn.rooms, gid)
 	}
+
 }
 
 func readPump(c *connection, counter int, lastResponse time.Time) {
@@ -232,7 +235,6 @@ func readPump(c *connection, counter int, lastResponse time.Time) {
 	for {
 		err := c.client.ReadJSON(r)
 		if err != nil {
-			fmt.Println("hey", err)
 			c.isdestroyed <- c.gid
 			return
 		}
@@ -245,21 +247,23 @@ func writePump(c *connection, counter int, lastResponse time.Time) {
 		select {
 
 		case c.gid = <-c.isready:
-			leaveRoom(c.pid, c.gid)
-			c.client.Close()
-			return
+			fmt.Println("CONNECTED")
 
 		case <-c.isdestroyed:
+			fmt.Println("Im gonna need you gone")
 			err := c.client.Close()
 			if err != nil {
 				fmt.Println("Err: ", err)
 			}
-			Conn.removeFromQueue(c.pid)
+			Conn.clearConn(c.pid, c.gid)
 
 			return
 
 		case <-time.After(54 * time.Second):
-			c.client.WriteJSON("ping")
+			err := c.client.WriteJSON("ping")
+			if err != nil {
+				fmt.Println("CLIENT HAS LEFT")
+			}
 		}
 	}
 }
