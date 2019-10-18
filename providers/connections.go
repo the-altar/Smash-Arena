@@ -30,6 +30,7 @@ type (
 
 	connection struct {
 		client      *websocket.Conn
+		gamePos     int
 		pid         string
 		gid         string
 		isready     chan bool
@@ -38,10 +39,11 @@ type (
 
 	rooms struct {
 		sync        sync.Mutex
-		player      []*connection
+		player      map[int]*connection
 		turnCount   int
 		gid         string
 		isdestroyed chan bool
+		playerleft  chan int
 		turn        chan int
 	}
 	// ConnProvider manages our connections
@@ -72,6 +74,7 @@ func (cp *ConnProvider) Init(g *gin.Context, created chan bool) error {
 	conn := &connection{
 		client:      ws,
 		pid:         pid,
+		gamePos:     -1,
 		isready:     make(chan bool),
 		isdestroyed: make(chan string),
 	}
@@ -125,14 +128,17 @@ func (m *MatchMake) run(conn *connection) {
 // this function is responsible for actually processing the matchmaking
 func (m *MatchMake) doWork() {
 	for Conn.Size() >= 2 {
-		v := make([]*connection, 0)
+		v := make(map[int]*connection)
 		c1 := Conn.pop()
 		c2 := Conn.pop()
 
-		v = append(v, Conn.connected[c1], Conn.connected[c2])
+		v[0] = Conn.connected[c1]
+		v[0].gamePos = 0
+
+		v[1] = Conn.connected[c2]
+		v[1].gamePos = 1
 
 		Conn.createRoom(v)
-		fmt.Println(Conn.Size())
 	}
 
 	if Conn.Size() == 0 {
@@ -145,18 +151,28 @@ func (m *MatchMake) doWork() {
 }
 
 // creates a room with 2 players each mapped by a UUID string
-func (cp *ConnProvider) createRoom(r []*connection) {
+func (cp *ConnProvider) createRoom(r map[int]*connection) {
 	id, err := uuid.NewUUID()
+
 	if err != nil {
 		panic("couldn't create ID")
 	}
+
 	gid := id.String()
 
 	for conn := range r {
 		r[conn].gid = gid
 	}
 
-	rs := &rooms{player: r, gid: gid, turnCount: 0, turn: make(chan int), isdestroyed: make(chan bool)}
+	rs := &rooms{
+		player:      r,
+		gid:         gid,
+		turnCount:   0,
+		turn:        make(chan int),
+		isdestroyed: make(chan bool),
+		playerleft:  make(chan int),
+	}
+
 	cp.rooms[gid] = rs
 
 	rs.serve()
@@ -194,19 +210,13 @@ func (cp *ConnProvider) pop() string {
 }
 
 // removes player from server
-func (cp *ConnProvider) clearConn(pid string, gid string) {
+func (cp *ConnProvider) clearConn(pid string, gid string, pos int) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
 
 	_, ok := cp.rooms[gid]
-	fmt.Println(gid)
 	if ok {
-		for v := range Conn.rooms[gid].player {
-			if Conn.rooms[gid].player[v].pid == pid {
-				Conn.rooms[gid].player = append(Conn.rooms[gid].player[:v], Conn.rooms[gid].player[v+1:]...)
-				break
-			}
-		}
+		delete(cp.rooms[gid].player, pos)
 		closeDoor(gid)
 	} else {
 		for v := range cp.connections {
@@ -219,6 +229,7 @@ func (cp *ConnProvider) clearConn(pid string, gid string) {
 
 	delete(cp.connected, pid)
 
+	fmt.Printf("-------------\n\n")
 	fmt.Println("CURRENT STATUS: ")
 	fmt.Println("CONNECTIONS:", len(Conn.connected))
 	fmt.Println("ROOMS: ", len(Conn.rooms))
@@ -236,11 +247,17 @@ func (r *rooms) countUp() {
 func (r *rooms) serve() {
 	for {
 		select {
+		case index := <-r.playerleft:
+			r.player[index].client.Close()
+			r.player[index].isdestroyed <- r.gid
+			go Conn.clearConn(r.player[index].pid, r.gid, index)
+
 		case <-time.After(60 * time.Second):
 			r.player[r.playerTurn()].isready <- true
 			r.countUp()
+
 		case <-r.isdestroyed:
-			fmt.Println("Showtime is over!")
+			fmt.Println("\n**** Showtime is over! ****")
 			return
 		}
 	}
@@ -272,7 +289,14 @@ func readPump(c *connection, counter int, lastResponse time.Time) {
 	for {
 		err := c.client.ReadJSON(r)
 		if err != nil {
-			c.isdestroyed <- c.gid
+			fmt.Printf("%s left\n", c.pid)
+			if c.gamePos < 0 {
+				c.client.Close()
+				c.isdestroyed <- ""
+				Conn.clearConn(c.pid, "", 0)
+			} else {
+				Conn.rooms[c.gid].playerleft <- c.gamePos
+			}
 			return
 		}
 	}
@@ -287,14 +311,6 @@ func writePump(c *connection, counter int, lastResponse time.Time) {
 			c.client.WriteJSON("ping")
 
 		case <-c.isdestroyed:
-			fmt.Println("Im gonna need you gone")
-			err := c.client.Close()
-			if err != nil {
-				fmt.Println("Err: ", err)
-			}
-			fmt.Println(c.gid)
-			Conn.clearConn(c.pid, c.gid)
-
 			return
 
 		case <-time.After(50 * time.Second):
