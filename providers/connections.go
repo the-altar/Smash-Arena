@@ -32,14 +32,17 @@ type (
 		client      *websocket.Conn
 		pid         string
 		gid         string
-		isready     chan string
+		isready     chan bool
 		isdestroyed chan string
 	}
 
 	rooms struct {
-		sync   sync.Mutex
-		player []*connection
-		gid    string
+		sync        sync.Mutex
+		player      []*connection
+		turnCount   int
+		gid         string
+		isdestroyed chan bool
+		turn        chan int
 	}
 	// ConnProvider manages our connections
 	ConnProvider struct {
@@ -66,7 +69,12 @@ func (cp *ConnProvider) Init(g *gin.Context, created chan bool) error {
 		return err
 	}
 
-	conn := &connection{ws, pid, "", make(chan string), make(chan string)}
+	conn := &connection{
+		client:      ws,
+		pid:         pid,
+		isready:     make(chan bool),
+		isdestroyed: make(chan string),
+	}
 
 	cp.setConn(pid, conn)
 
@@ -131,7 +139,7 @@ func (m *MatchMake) doWork() {
 		m.isBusy = false
 		return
 	}
-	time.Sleep(20 * time.Second)
+	time.Sleep(5 * time.Second)
 	go m.doWork()
 	return
 }
@@ -143,12 +151,15 @@ func (cp *ConnProvider) createRoom(r []*connection) {
 		panic("couldn't create ID")
 	}
 	gid := id.String()
-	rs := &rooms{player: r, gid: gid}
+
+	for conn := range r {
+		r[conn].gid = gid
+	}
+
+	rs := &rooms{player: r, gid: gid, turnCount: 0, turn: make(chan int), isdestroyed: make(chan bool)}
 	cp.rooms[gid] = rs
 
-	rs.player[0].isready <- gid
-	rs.player[1].isready <- gid
-
+	rs.serve()
 	return
 }
 
@@ -188,7 +199,7 @@ func (cp *ConnProvider) clearConn(pid string, gid string) {
 	defer cp.mu.Unlock()
 
 	_, ok := cp.rooms[gid]
-
+	fmt.Println(gid)
 	if ok {
 		for v := range Conn.rooms[gid].player {
 			if Conn.rooms[gid].player[v].pid == pid {
@@ -216,15 +227,41 @@ func (cp *ConnProvider) clearConn(pid string, gid string) {
 	return
 }
 
+func (r *rooms) countUp() {
+	r.sync.Lock()
+	r.turnCount++
+	r.sync.Unlock()
+}
+
+func (r *rooms) serve() {
+	for {
+		select {
+		case <-time.After(60 * time.Second):
+			r.player[r.playerTurn()].isready <- true
+			r.countUp()
+		case <-r.isdestroyed:
+			fmt.Println("Showtime is over!")
+			return
+		}
+	}
+}
+
+func (r *rooms) playerTurn() int {
+	r.sync.Lock()
+	defer r.sync.Unlock()
+
+	counter := r.turnCount % 2
+	return counter
+}
+
 func closeDoor(gid string) {
-	Conn.rooms[gid].sync.Lock()
-	defer Conn.rooms[gid].sync.Unlock()
 
 	r := Conn.rooms[gid]
 	if len(r.player) == 0 {
 		delete(Conn.rooms, gid)
+		fmt.Printf("ROOM %s is closed!\n", gid)
+		r.isdestroyed <- true
 	}
-
 }
 
 func readPump(c *connection, counter int, lastResponse time.Time) {
@@ -245,9 +282,9 @@ func writePump(c *connection, counter int, lastResponse time.Time) {
 	fmt.Println("Write pumping...")
 	for {
 		select {
-
-		case c.gid = <-c.isready:
-			fmt.Println("CONNECTED")
+		case <-c.isready:
+			fmt.Printf("Hey %s, it's your turn dude", c.pid)
+			c.client.WriteJSON("ping")
 
 		case <-c.isdestroyed:
 			fmt.Println("Im gonna need you gone")
@@ -255,15 +292,13 @@ func writePump(c *connection, counter int, lastResponse time.Time) {
 			if err != nil {
 				fmt.Println("Err: ", err)
 			}
+			fmt.Println(c.gid)
 			Conn.clearConn(c.pid, c.gid)
 
 			return
 
-		case <-time.After(54 * time.Second):
-			err := c.client.WriteJSON("ping")
-			if err != nil {
-				fmt.Println("CLIENT HAS LEFT")
-			}
+		case <-time.After(50 * time.Second):
+			c.client.WriteJSON("ping")
 		}
 	}
 }
