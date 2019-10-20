@@ -86,7 +86,9 @@ func (cp *ConnProvider) Init(g *gin.Context, created chan bool) error {
 
 	pid := g.Param("id")
 	if cp.isConnected(pid) {
-		return fmt.Errorf("User already connected")
+		err := fmt.Errorf("User already connected")
+		fmt.Println(err)
+		return err
 	}
 
 	ws, err := upgrade.Upgrade(g.Writer, g.Request, nil)
