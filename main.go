@@ -9,7 +9,6 @@ func main() {
 
 	g := gin.New()
 	g.Static("/public", "./public")
-	g.StaticFile("/", "public/index.html")
 	g.GET("ws/:id", func(g *gin.Context) {
 		v := make(chan bool)
 		go providers.Conn.Init(g, v)
