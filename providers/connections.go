@@ -204,6 +204,7 @@ func (cp *ConnProvider) createRoom(r map[int]*connection) {
 	cp.rooms[gid] = rs
 
 	go rs.serve()
+	rs.turn <- 0
 	return
 }
 
@@ -275,26 +276,33 @@ func (r *rooms) countUp() {
 func (r *rooms) serve() {
 	for {
 		select {
+		case <-r.turn:
+			switchPlay(r)
+
 		case index := <-r.playerleft:
 			r.player[index].client.Close()
 			r.player[index].isdestroyed <- r.gid
 			go Conn.clearConn(r.player[index].pid, r.gid, index)
 
 		case <-time.After(60 * time.Second):
-			p, ok := r.player[r.playerTurn()]
-			if ok {
-				p.isready <- true
-			} else {
-				fmt.Println("player went missing")
-			}
-
-			r.countUp()
+			switchPlay(r)
 
 		case <-r.isdestroyed:
 			fmt.Println("\n**** Showtime is over! ****")
 			return
 		}
 	}
+}
+
+func switchPlay(r *rooms) {
+	p, ok := r.player[r.playerTurn()]
+	if ok {
+		p.isready <- true
+	} else {
+		fmt.Println("player went missing")
+	}
+
+	r.countUp()
 }
 
 func (r *rooms) playerTurn() int {
