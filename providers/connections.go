@@ -2,6 +2,7 @@ package providers
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -11,7 +12,13 @@ import (
 )
 
 var (
-	upgrade = websocket.Upgrader{}
+	upgrade = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
 	// Conn manages our connections
 	Conn = &ConnProvider{
 		connections: make([]string, 0),
@@ -20,6 +27,12 @@ var (
 	}
 	// PairUP connections that are available
 	pairUP = MatchMake{isBusy: false}
+)
+
+const (
+	roomIsReady     = 0
+	playerHasLeft   = 1
+	playerHasJoined = 2
 )
 
 type (
@@ -52,6 +65,17 @@ type (
 		connections []string
 		connected   map[string]*connection
 		rooms       map[string]*rooms
+	}
+
+	// ClientMessage is the data structure sent to the client and what we expect to receive
+	ClientMessage struct {
+		Code int    `json:"code"`
+		Gid  string `json:"gid"`
+		Data Data   `json:"data"`
+	}
+	// Data composes the client message
+	Data struct {
+		Test int `json:"test"`
 	}
 )
 
@@ -127,6 +151,7 @@ func (m *MatchMake) run(conn *connection) {
 
 // this function is responsible for actually processing the matchmaking
 func (m *MatchMake) doWork() {
+	fmt.Println("Matching")
 	for Conn.Size() >= 2 {
 		v := make(map[int]*connection)
 		c1 := Conn.pop()
@@ -139,6 +164,7 @@ func (m *MatchMake) doWork() {
 		v[1].gamePos = 1
 
 		Conn.createRoom(v)
+		fmt.Println("Matched!")
 	}
 
 	if Conn.Size() == 0 {
@@ -175,7 +201,7 @@ func (cp *ConnProvider) createRoom(r map[int]*connection) {
 
 	cp.rooms[gid] = rs
 
-	rs.serve()
+	go rs.serve()
 	return
 }
 
@@ -253,7 +279,13 @@ func (r *rooms) serve() {
 			go Conn.clearConn(r.player[index].pid, r.gid, index)
 
 		case <-time.After(60 * time.Second):
-			r.player[r.playerTurn()].isready <- true
+			p, ok := r.player[r.playerTurn()]
+			if ok {
+				p.isready <- true
+			} else {
+				fmt.Println("player went missing")
+			}
+
 			r.countUp()
 
 		case <-r.isdestroyed:
@@ -307,8 +339,13 @@ func writePump(c *connection, counter int, lastResponse time.Time) {
 	for {
 		select {
 		case <-c.isready:
+			msg := &ClientMessage{
+				Code: 0,
+				Gid:  c.gid,
+				Data: Data{Test: 1},
+			}
 			fmt.Printf("Hey %s, it's your turn dude", c.pid)
-			c.client.WriteJSON("ping")
+			c.client.WriteJSON(msg)
 
 		case <-c.isdestroyed:
 			return
