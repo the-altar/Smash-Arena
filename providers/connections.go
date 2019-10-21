@@ -47,6 +47,7 @@ type (
 		pid         string
 		gid         string
 		isready     chan bool
+		reconnect   chan bool
 		isdestroyed chan string
 	}
 
@@ -86,7 +87,25 @@ func (cp *ConnProvider) Init(g *gin.Context, created chan bool) error {
 
 	pid := g.Param("id")
 	if cp.isConnected(pid) {
-		err := fmt.Errorf("User already connected")
+		cookie, err := g.Cookie("gid")
+
+		if err != nil {
+			return fmt.Errorf("Something went wrong")
+		}
+
+		_, ok := Conn.rooms[cookie]
+
+		if ok {
+			for v := range Conn.rooms[cookie].player {
+				if Conn.rooms[cookie].player[v].pid == pid {
+					Conn.rooms[cookie].player[v].client, err = upgrade.Upgrade(g.Writer, g.Request, nil)
+					Conn.rooms[cookie].player[v].reconnect <- true
+					return nil
+				}
+			}
+		}
+
+		err = fmt.Errorf("User already connected")
 		fmt.Println(err)
 		return err
 	}
@@ -101,6 +120,7 @@ func (cp *ConnProvider) Init(g *gin.Context, created chan bool) error {
 		client:      ws,
 		pid:         pid,
 		gamePos:     -1,
+		reconnect:   make(chan bool),
 		isready:     make(chan bool),
 		isdestroyed: make(chan string),
 	}
@@ -277,15 +297,14 @@ func (r *rooms) serve() {
 	for {
 		select {
 		case <-r.turn:
-			switchPlay(r)
+			r.switchPlay()
 
 		case index := <-r.playerleft:
-			r.player[index].client.Close()
 			r.player[index].isdestroyed <- r.gid
 			go Conn.clearConn(r.player[index].pid, r.gid, index)
 
 		case <-time.After(60 * time.Second):
-			switchPlay(r)
+			r.switchPlay()
 
 		case <-r.isdestroyed:
 			fmt.Println("\n**** Showtime is over! ****")
@@ -294,7 +313,7 @@ func (r *rooms) serve() {
 	}
 }
 
-func switchPlay(r *rooms) {
+func (r *rooms) switchPlay() {
 	p, ok := r.player[r.playerTurn()]
 	if ok {
 		p.isready <- true
@@ -331,15 +350,22 @@ func readPump(c *connection, counter int, lastResponse time.Time) {
 	for {
 		err := c.client.ReadJSON(r)
 		if err != nil {
-			fmt.Printf("%s left\n", c.pid)
+			c.client.Close()
+
 			if c.gamePos < 0 {
-				c.client.Close()
 				c.isdestroyed <- ""
 				Conn.clearConn(c.pid, "", 0)
-			} else {
-				Conn.rooms[c.gid].playerleft <- c.gamePos
+				return
 			}
-			return
+
+			fmt.Println("Player left, waiting for reconnect")
+			select {
+			case <-time.After(60 * time.Second):
+				Conn.rooms[c.gid].playerleft <- c.gamePos
+				return
+			case <-c.reconnect:
+				fmt.Println("player reconnected")
+			}
 		}
 	}
 }
