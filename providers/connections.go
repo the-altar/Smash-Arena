@@ -185,8 +185,8 @@ func (m *MatchMake) doWork() {
 		v[1] = Conn.connected[c2]
 		v[1].gamePos = 1
 
-		Conn.createRoom(v)
 		fmt.Println("Matched!")
+		Conn.createRoom(v)
 	}
 
 	if Conn.Size() == 0 {
@@ -223,7 +223,7 @@ func (cp *ConnProvider) createRoom(r map[int]*connection) {
 
 	cp.rooms[gid] = rs
 
-	go rs.serve()
+	go serveRoom(rs)
 	rs.turn <- 0
 	return
 }
@@ -293,27 +293,7 @@ func (r *rooms) countUp() {
 	r.sync.Unlock()
 }
 
-func (r *rooms) serve() {
-	for {
-		select {
-		case <-r.turn:
-			r.switchPlay()
-
-		case index := <-r.playerleft:
-			r.player[index].isdestroyed <- r.gid
-			go Conn.clearConn(r.player[index].pid, r.gid, index)
-
-		case <-time.After(60 * time.Second):
-			r.switchPlay()
-
-		case <-r.isdestroyed:
-			fmt.Println("\n**** Showtime is over! ****")
-			return
-		}
-	}
-}
-
-func (r *rooms) switchPlay() {
+func (r *rooms) switchPlayerTurn() {
 	p, ok := r.player[r.playerTurn()]
 	if ok {
 		p.isready <- true
@@ -332,62 +312,11 @@ func (r *rooms) playerTurn() int {
 	return counter
 }
 
-func closeDoor(gid string) {
-
-	r := Conn.rooms[gid]
-	if len(r.player) == 0 {
-		delete(Conn.rooms, gid)
-		fmt.Printf("ROOM %s is closed!\n", gid)
-		r.isdestroyed <- true
+func (r *rooms) isItYourTurn(pid string) bool {
+	r.sync.Lock()
+	defer r.sync.Unlock()
+	if r.player[r.turnCount%2].pid != pid {
+		return true
 	}
-}
-
-func readPump(c *connection, counter int, lastResponse time.Time) {
-	type res struct {
-		data string
-	}
-	r := &res{}
-	for {
-		err := c.client.ReadJSON(r)
-		if err != nil {
-			c.client.Close()
-
-			if c.gamePos < 0 {
-				c.isdestroyed <- ""
-				Conn.clearConn(c.pid, "", 0)
-				return
-			}
-
-			fmt.Println("Player left, waiting for reconnect")
-			select {
-			case <-time.After(60 * time.Second):
-				Conn.rooms[c.gid].playerleft <- c.gamePos
-				return
-			case <-c.reconnect:
-				fmt.Println("player reconnected")
-			}
-		}
-	}
-}
-
-func writePump(c *connection, counter int, lastResponse time.Time) {
-	fmt.Println("Write pumping...")
-	for {
-		select {
-		case <-c.isready:
-			msg := &ClientMessage{
-				Code: 0,
-				Gid:  c.gid,
-				Data: Data{Test: 1},
-			}
-			fmt.Printf("Hey %s, it's your turn dude", c.pid)
-			c.client.WriteJSON(msg)
-
-		case <-c.isdestroyed:
-			return
-
-		case <-time.After(50 * time.Second):
-			c.client.WriteJSON("ping")
-		}
-	}
+	return false
 }
