@@ -1,15 +1,18 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/the-altar/Smash-Arena/packages/providers"
 	"golang.org/x/crypto/bcrypt"
+
+	_ "github.com/lib/pq"
 )
 
 func main() {
+
+	providers.DB.Open()
 
 	g := gin.New()
 	g.LoadHTMLGlob("templates/**/*")
@@ -22,8 +25,12 @@ func main() {
 		})
 	})
 
-	g.GET("/register", func(g *gin.Context) {
-		g.HTML(http.StatusOK, "register.gohtml", nil)
+	g.GET("/signup", func(g *gin.Context) {
+		g.HTML(http.StatusOK, "signup.gohtml", nil)
+	})
+
+	g.GET("/login", func(g *gin.Context) {
+		g.HTML(http.StatusOK, "login.gohtml", nil)
 	})
 
 	g.GET("/ws/:id", func(g *gin.Context) {
@@ -33,16 +40,28 @@ func main() {
 	})
 
 	g.POST("/user/new", func(g *gin.Context) {
-		p := g.PostForm("password")
-		hash, _ := hashPassword(p)
-		fmt.Println(hash)
-		fmt.Println(checkPasswordHash(p, hash))
-		g.Redirect(http.StatusMovedPermanently, "/")
+		username := g.PostForm("username")
+		password := g.PostForm("password")
+		password, _ = hashPassword(password)
 
+		providers.DB.CreateUser(username, password)
+
+		g.Redirect(http.StatusMovedPermanently, "/")
+	})
+
+	g.POST("/user/login", func(g *gin.Context) {
+		u := g.PostForm("username")
+		p := g.PostForm("password")
+		hash, _ := providers.DB.FindUserByName(u)
+
+		if checkPasswordHash(p, hash) {
+			g.Redirect(http.StatusMovedPermanently, "/")
+		} else {
+			g.Redirect(http.StatusMovedPermanently, "/login")
+		}
 	})
 
 	g.Run()
-
 }
 
 func hashPassword(password string) (string, error) {
