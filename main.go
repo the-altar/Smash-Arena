@@ -5,7 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/the-altar/Smash-Arena/providers"
+	"github.com/the-altar/Smash-Arena/packages/providers"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -32,13 +33,24 @@ func main() {
 	})
 
 	g.POST("/user/new", func(g *gin.Context) {
-
-		fmt.Println(g.PostForm("username"))
-
+		p := g.PostForm("password")
+		hash, _ := hashPassword(p)
+		fmt.Println(hash)
+		fmt.Println(checkPasswordHash(p, hash))
 		g.Redirect(http.StatusMovedPermanently, "/")
 
 	})
 
 	g.Run()
 
+}
+
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	return string(bytes), err
+}
+
+func checkPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
