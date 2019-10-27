@@ -9,8 +9,8 @@ import (
 
 // User defines a user struct
 type User struct {
-	username string
-	password string
+	Username string
+	Password string
 	ID       int
 }
 
@@ -22,7 +22,25 @@ func OneUserByName(name string) (User, error) {
 
 	row := config.DB.QueryRow(sqlStatement, name)
 
-	switch err := row.Scan(user.ID, user.username, user.password); err {
+	switch err := row.Scan(&user.ID, &user.Username, &user.Password); err {
+	case sql.ErrNoRows:
+		return user, fmt.Errorf("No rows were found")
+	case nil:
+		return user, nil
+	default:
+		panic(err)
+	}
+}
+
+// OneUserByID fetches a single user from our database using its ID
+func OneUserByID(id int) (User, error) {
+	user := User{}
+
+	sqlStatement := "SELECT * FROM public.user as u WHERE u.user_id = $1"
+
+	row := config.DB.QueryRow(sqlStatement, id)
+
+	switch err := row.Scan(&user.ID, &user.Username, &user.Password); err {
 	case sql.ErrNoRows:
 		return user, fmt.Errorf("No rows were found")
 	case nil:

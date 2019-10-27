@@ -1,0 +1,26 @@
+{{ template "metadata.html" "Sign-up" }}
+
+<body>
+
+    {{ if . }}
+    Welcome, {{ .user.Username }}
+    <button id="g">Open game</button>
+    <script>
+        document.getElementById("g").addEventListener("click", function () {
+            window.open("/arena", 'mywin','width=500,height=500')
+        }); 
+    </script>
+    {{ else }}
+
+    <a href="/login">Login Page</a>
+    <a href="/signup">Signup Page</a>
+    {{ end }}
+
+    {{ if . }}
+    <form action="/user/signout" method="post">
+        <input type="submit" name="upvote" value="Sign out" />
+    </form>
+    {{end}}
+</body>
+
+</html>
