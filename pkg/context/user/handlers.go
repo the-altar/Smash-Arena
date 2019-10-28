@@ -48,6 +48,17 @@ func Signout(g *gin.Context) {
 	g.Redirect(http.StatusMovedPermanently, "/")
 }
 
+// Self fetches the user from a session
+func Self(g *gin.Context) {
+	sid, err := g.Cookie("sid")
+	if err != nil {
+		return
+	}
+	session, _ := manager.GetSession(sid)
+	g.JSON(http.StatusAccepted, session)
+	return
+}
+
 func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	return string(bytes), err
