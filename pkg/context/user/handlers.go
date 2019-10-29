@@ -16,10 +16,15 @@ func Signup(g *gin.Context) {
 	password, _ = hashPassword(password)
 
 	if err := CreateUser(username, password); err != nil {
-		g.Redirect(http.StatusMovedPermanently, "/")
-	} else {
-		g.Redirect(http.StatusMovedPermanently, "/signup")
+		user, err := OneUserByName(username)
+		if err != nil {
+			u, _ := uuid.NewUUID()
+			g.SetCookie("sid", u.String(), 60*60*24, "/", "", false, true)
+			manager.SetSession(u.String(), user.ID, user.Username)
+		}
 	}
+
+	g.Redirect(http.StatusMovedPermanently, "/")
 }
 
 // Signin logs an user in
@@ -32,11 +37,9 @@ func Signin(g *gin.Context) {
 		u, _ := uuid.NewUUID()
 		g.SetCookie("sid", u.String(), 60*60*24, "/", "", false, true)
 		manager.SetSession(u.String(), user.ID, user.Username)
-
-		g.Redirect(http.StatusMovedPermanently, "/")
-	} else {
-		g.Redirect(http.StatusMovedPermanently, "/login")
 	}
+
+	g.Redirect(http.StatusMovedPermanently, "/")
 }
 
 // Signout removes all records from server

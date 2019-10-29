@@ -4,23 +4,37 @@
 
     {{ if . }}
     Welcome, {{ .user.Username }}
+    <form action="/user/signout" method="post">
+        <input type="submit" name="upvote" value="Signout" />
+    </form>
     <button id="g">Open game</button>
     <script>
         document.getElementById("g").addEventListener("click", function () {
-            window.open("/arena", 'mywin','width=500,height=500')
+            window.open("/arena", 'mywin', 'width=500,height=500')
         }); 
     </script>
     {{ else }}
 
-    <a href="/login">Login Page</a>
-    <a href="/signup">Signup Page</a>
+    <div>
+        <form action="/user/signup" method="post">
+            <h1>signup form</h1>
+            <input type="text" placeholder="username" name="username">
+            <input type="password" placeholder="password" name="password">
+            <button>Send</button>
+        </form>
+    </div>
+
+    <div>
+        <form action="/user/signin" method="post">
+            <h1>signin form</h1>
+            <input type="text" placeholder="username" name="username">
+            <input type="password" placeholder="password" name="password">
+            <button>Send</button>
+        </form>
+    </div>
+
     {{ end }}
 
-    {{ if . }}
-    <form action="/user/signout" method="post">
-        <input type="submit" name="upvote" value="Sign out" />
-    </form>
-    {{end}}
 </body>
 
 </html>
