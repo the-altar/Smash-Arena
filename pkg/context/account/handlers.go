@@ -1,4 +1,4 @@
-package user
+package account
 
 import (
 	"net/http"
@@ -15,8 +15,8 @@ func Signup(g *gin.Context) {
 	password := g.PostForm("password")
 	password, _ = hashPassword(password)
 
-	if err := CreateUser(username, password); err != nil {
-		user, err := OneUserByName(username)
+	if err := CreateAccount(username, password); err != nil {
+		user, err := OneAccountByName(username)
 		if err != nil {
 			u, _ := uuid.NewUUID()
 			g.SetCookie("sid", u.String(), 60*60*24, "/", "", false, true)
@@ -31,7 +31,7 @@ func Signup(g *gin.Context) {
 func Signin(g *gin.Context) {
 	u := g.PostForm("username")
 	p := g.PostForm("password")
-	user, _ := OneUserByName(u)
+	user, _ := OneAccountByName(u)
 
 	if checkPasswordHash(p, user.Password) {
 		u, _ := uuid.NewUUID()

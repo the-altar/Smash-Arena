@@ -1,4 +1,4 @@
-package user
+package account
 
 import (
 	"database/sql"
@@ -7,18 +7,18 @@ import (
 	"github.com/the-altar/Smash-Arena/pkg/config"
 )
 
-// User defines a user struct
-type User struct {
+// Account defines a user struct
+type Account struct {
 	Username string
 	Password string
 	ID       int
 }
 
-// OneUserByName finds a user
-func OneUserByName(name string) (User, error) {
-	user := User{}
+// OneAccountByName finds a user
+func OneAccountByName(name string) (Account, error) {
+	user := Account{}
 
-	sqlStatement := "SELECT * FROM public.user as u WHERE u.user_name = $1"
+	sqlStatement := "SELECT * FROM account WHERE account.username = $1"
 
 	row := config.DB.QueryRow(sqlStatement, name)
 
@@ -32,11 +32,11 @@ func OneUserByName(name string) (User, error) {
 	}
 }
 
-// OneUserByID fetches a single user from our database using its ID
-func OneUserByID(id int) (User, error) {
-	user := User{}
+// OneAccountByID fetches a single user from our database using its ID
+func OneAccountByID(id int) (Account, error) {
+	user := Account{}
 
-	sqlStatement := "SELECT * FROM public.user as u WHERE u.user_id = $1"
+	sqlStatement := "SELECT * FROM account WHERE account.account_key = $1"
 
 	row := config.DB.QueryRow(sqlStatement, id)
 
@@ -50,9 +50,9 @@ func OneUserByID(id int) (User, error) {
 	}
 }
 
-// CreateUser creates a new user
-func CreateUser(u string, p string) error {
-	sqlStatement := "INSERT INTO public.user(user_name, user_password) VALUES ($1,$2)"
+// CreateAccount creates a new user
+func CreateAccount(u string, p string) error {
+	sqlStatement := "INSERT INTO account(username, keyword) VALUES ($1,$2)"
 
 	if _, err := config.DB.Query(sqlStatement, u, p); err != nil {
 		return err

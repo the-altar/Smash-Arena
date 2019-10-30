@@ -14,11 +14,11 @@ type (
 	}
 	// COSTINDEX enum definition
 	COSTINDEX struct {
-		SPECIAL   int
-		STRATEGIC int
-		PHYSICAL  int
-		SECRET    int
-		WILD      int
+		SPIRIT   int
+		STRENGTH int
+		WISDOM   int
+		SECRET   int
+		RANDOM   int
 	}
 	// ATTRIBUTE enum definition
 	ATTRIBUTE struct {
@@ -29,6 +29,6 @@ type (
 var (
 	target     = TARGET{ONE: 1, TWO: 2, ALL: 3, RANDOM: 0}
 	effectType = TYPE{DAMAGE: 1}
-	cost       = COSTINDEX{SPECIAL: 0, STRATEGIC: 1, PHYSICAL: 2, SECRET: 3, WILD: 4}
+	cost       = COSTINDEX{SPIRIT: 0, STRENGTH: 1, WISDOM: 2, SECRET: 3, RANDOM: 4}
 	attr       = ATTRIBUTE{HEALTH: 0}
 )

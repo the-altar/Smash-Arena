@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/the-altar/Smash-Arena/pkg/context/arena"
 	"github.com/the-altar/Smash-Arena/pkg/context/home"
-	"github.com/the-altar/Smash-Arena/pkg/context/user"
+	"github.com/the-altar/Smash-Arena/pkg/context/account"
 )
 
 func main() {
@@ -17,11 +17,11 @@ func main() {
 
 	g.GET("/arena", arena.Arena)
 	g.GET("/arena/ws/:id", arena.GameSocket)
-	g.GET("/arena/api/user", user.Self)
+	g.GET("/arena/api/account", account.Self)
 
-	g.POST("/user/signin", user.Signin)
-	g.POST("/user/signup", user.Signup)
-	g.POST("/user/signout", user.Signout)
+	g.POST("/account/signin", account.Signin)
+	g.POST("/account/signup", account.Signup)
+	g.POST("/account/signout", account.Signout)
 
 	g.Run()
 }

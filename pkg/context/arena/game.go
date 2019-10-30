@@ -44,3 +44,19 @@ type GAME struct {
 	Characters [3]CHARACTER
 	Enemy      [3]CHARACTER
 }
+
+// parameters: isCounterable, isReflectable
+func buildFlags(isCounterable bool, isReflectable bool)
+
+// parameters: spirit, strength, wisdom, secret, random
+func buildCost(spirit int, strength int, wisdom int, secret int, random int)
+
+// parameters: EffectType, Value, Attribute
+func buildEffect(eType int, value int, attr int)
+
+// parameters: isUsable, targets, cooldown
+func buildSkill(isUsable bool, targets int, cooldown int, effect []EFFECT, flags FLAGS, cost COST)
+
+// parameters: health, id
+// returns a CHARACTER
+func buildCharacter(health int, id int) CHARACTER
