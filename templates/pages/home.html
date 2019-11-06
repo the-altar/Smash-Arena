@@ -4,7 +4,7 @@
 
     {{ if . }}
     Welcome, {{ .user.Username }}
-    <form action="/user/signout" method="post">
+    <form action="/account/signout" method="post">
         <input type="submit" name="upvote" value="Signout" />
     </form>
     <button id="g">Open game</button>
@@ -16,7 +16,7 @@
     {{ else }}
 
     <div>
-        <form action="/user/signup" method="post">
+        <form action="/account/signup" method="post">
             <h1>signup form</h1>
             <input type="text" placeholder="username" name="username">
             <input type="password" placeholder="password" name="password">
@@ -25,7 +25,7 @@
     </div>
 
     <div>
-        <form action="/user/signin" method="post">
+        <form action="/account/signin" method="post">
             <h1>signin form</h1>
             <input type="text" placeholder="username" name="username">
             <input type="password" placeholder="password" name="password">

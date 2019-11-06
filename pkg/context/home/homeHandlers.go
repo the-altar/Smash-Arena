@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/the-altar/Smash-Arena/pkg/context/user"
+	"github.com/the-altar/Smash-Arena/pkg/context/account"
 	"github.com/the-altar/Smash-Arena/pkg/manager"
 )
 
@@ -12,7 +12,7 @@ import (
 func Home(g *gin.Context) {
 	cookie, _ := g.Cookie("sid")
 	if session, ok := manager.GetSession(cookie); ok {
-		u, _ := user.OneUserByID(session.ID)
+		u, _ := account.OneAccountByID(session.ID)
 		g.HTML(http.StatusOK, "home.html", gin.H{
 			"user": u,
 		})
