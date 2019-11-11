@@ -2,6 +2,7 @@ package arena
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,5 +25,17 @@ func Arena(g *gin.Context) {
 func GetAllPersona(g *gin.Context) {
 	personas := allPersona()
 	g.JSON(http.StatusOK, personas)
+	return
+}
+
+// OneSkillSet from a character
+func OneSkillSet(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+	if err != nil {
+		g.JSON(http.StatusBadRequest, 0)
+	}
+
+	s := oneSkillSet(id)
+	g.JSON(http.StatusOK, s)
 	return
 }

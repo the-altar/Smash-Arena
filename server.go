@@ -18,6 +18,7 @@ func main() {
 	g.GET("/arena", arena.Arena)
 	g.GET("/arena/ws/:id", arena.GameSocket)
 	g.GET("/arena/api/persona", arena.GetAllPersona)
+	g.GET("/arena/api/persona/skill/:id", arena.OneSkillSet)
 	g.GET("/arena/api/account", account.Self)
 
 	g.POST("/account/signin", account.Signin)
