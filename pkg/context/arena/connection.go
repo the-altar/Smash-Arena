@@ -126,7 +126,6 @@ func (cp *ConnProvider) Begin(g *gin.Context, created chan bool) error {
 
 	cp.append(conn.pid)
 
-	go PairUP.run(conn)
 	return nil
 }
 
@@ -366,7 +365,12 @@ func readPump(c *connection) {
 				fmt.Println("player reconnected")
 			}
 		}
-		if r.Code == 2 {
+
+		if r.Code == -1 {
+
+			go PairUP.run(c)
+
+		} else if r.Code == 2 {
 			if Conn.rooms[c.gid].isItYourTurn(c.pid) {
 				Conn.rooms[c.gid].turn <- r.Code
 			}

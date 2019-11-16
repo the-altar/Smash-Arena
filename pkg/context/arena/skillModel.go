@@ -2,7 +2,6 @@ package arena
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/the-altar/Smash-Arena/pkg/config"
 )
@@ -57,7 +56,5 @@ func oneSkillSet(charID int) []skill {
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println(skills)
 	return skills
 }
