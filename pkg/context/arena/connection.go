@@ -80,12 +80,16 @@ type (
 // and the connection will have been appened to the cp.connection stack.
 func (cp *ConnProvider) Begin(g *gin.Context, created chan bool) error {
 
+	fmt.Println("Attempted to connect")
 	pid := g.Param("id")
 	if cp.isConnected(pid) {
 		cookie, err := g.Cookie("gid")
 
+		fmt.Println(cookie)
 		if err != nil {
-			return fmt.Errorf("Something went wrong")
+			fmt.Println(err)
+			fmt.Println("Already connected but gid doesn't exist")
+			return fmt.Errorf("Connected but gid doesn't exist")
 		}
 
 		_, ok := Conn.rooms[cookie]
@@ -120,12 +124,10 @@ func (cp *ConnProvider) Begin(g *gin.Context, created chan bool) error {
 		isdestroyed: make(chan string),
 	}
 
-	cp.setConn(pid, conn)
-
-	created <- true
-
 	cp.append(conn.pid)
-
+	created <- true
+	cp.setConn(pid, conn)
+	go PairUP.run(conn)
 	return nil
 }
 
@@ -156,6 +158,7 @@ func (cp *ConnProvider) isConnected(pid string) bool {
 // Run matchmaking function
 func (m *MatchMake) run(conn *connection) {
 	if m.isBusy {
+		fmt.Println("Worker is busy! Please be patient")
 		return
 	}
 	m.isBusy = true
@@ -165,8 +168,9 @@ func (m *MatchMake) run(conn *connection) {
 
 // this function is responsible for actually processing the matchmaking
 func (m *MatchMake) doWork() {
-	fmt.Println("Matching")
+	fmt.Println("Worker: Yo, Im working.")
 	for Conn.Size() >= 2 {
+		fmt.Println("Matching")
 		v := make(map[int]*connection)
 		c1 := Conn.pop()
 		c2 := Conn.pop()
@@ -183,6 +187,7 @@ func (m *MatchMake) doWork() {
 
 	if Conn.Size() == 0 {
 		m.isBusy = false
+		fmt.Println("Killed matching process")
 		return
 	}
 	time.Sleep(5 * time.Second)
@@ -365,12 +370,7 @@ func readPump(c *connection) {
 				fmt.Println("player reconnected")
 			}
 		}
-
-		if r.Code == -1 {
-
-			go PairUP.run(c)
-
-		} else if r.Code == 2 {
+		if r.Code == 2 {
 			if Conn.rooms[c.gid].isItYourTurn(c.pid) {
 				Conn.rooms[c.gid].turn <- r.Code
 			}
@@ -379,7 +379,6 @@ func readPump(c *connection) {
 }
 
 func writePump(c *connection) {
-	fmt.Println("Write pumping...")
 	for {
 		select {
 		case <-c.isready:
