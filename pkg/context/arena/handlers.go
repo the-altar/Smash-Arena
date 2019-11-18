@@ -17,7 +17,7 @@ func GameSocket(g *gin.Context) {
 
 // Arena serves our SPA
 func Arena(g *gin.Context) {
-	g.File("public/index.html")
+	g.File("./public/arena/index.html")
 	return
 }
 

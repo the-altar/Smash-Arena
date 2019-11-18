@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/the-altar/Smash-Arena/pkg/game"
 )
 
 var (
@@ -41,9 +42,10 @@ type (
 		gamePos     int
 		pid         string
 		gid         string
-		isready     chan bool
+		isready     chan int
 		reconnect   chan bool
 		isdestroyed chan string
+		Arena       *game.Arena
 	}
 
 	rooms struct {
@@ -65,13 +67,10 @@ type (
 
 	// ClientMessage is the data structure sent to the client and what we expect to receive
 	ClientMessage struct {
-		Code int    `json:"code"`
-		Gid  string `json:"gid"`
-		Data Data   `json:"data"`
-	}
-	// Data composes the client message
-	Data struct {
-		Test int `json:"test"`
+		Code     int        `json:"code"`
+		Gid      string     `json:"gid"`
+		GameData game.Arena `json:"gameData"`
+		TeamID   []int      `json:"teamId"`
 	}
 )
 
@@ -120,8 +119,9 @@ func (cp *ConnProvider) Begin(g *gin.Context, created chan bool) error {
 		pid:         pid,
 		gamePos:     -1,
 		reconnect:   make(chan bool),
-		isready:     make(chan bool),
+		isready:     make(chan int),
 		isdestroyed: make(chan string),
+		Arena:       nil,
 	}
 
 	cp.append(conn.pid)
@@ -172,14 +172,17 @@ func (m *MatchMake) doWork() {
 	for Conn.Size() >= 2 {
 		fmt.Println("Matching")
 		v := make(map[int]*connection)
-		c1 := Conn.pop()
-		c2 := Conn.pop()
+		c1 := Conn.pop(0)
+		c2 := Conn.pop(0)
 
 		v[0] = Conn.connected[c1]
 		v[0].gamePos = 0
 
 		v[1] = Conn.connected[c2]
 		v[1].gamePos = 1
+
+		v[0].Arena.Enemies = v[1].Arena.Allies
+		v[1].Arena.Enemies = v[0].Arena.Allies
 
 		fmt.Println("Matched!")
 		Conn.createRoom(v)
@@ -245,14 +248,17 @@ func (cp *ConnProvider) fetch(pid string) *connection {
 }
 
 // Pops a connection from the connection stack
-func (cp *ConnProvider) pop() string {
+func (cp *ConnProvider) pop(counter int) string {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
-	var conn string
 
-	conn, cp.connections = cp.connections[0], cp.connections[1:]
+	conn := cp.connections[counter]
+	if cp.connected[conn].Arena != nil {
+		cp.connections = cp.connections[counter+1:]
+		return conn
+	}
 
-	return conn
+	return cp.pop(counter + 1)
 }
 
 // removes player from server
@@ -293,7 +299,7 @@ func (r *rooms) countUp() {
 func (r *rooms) switchPlayerTurn() {
 	p, ok := r.player[r.playerTurn()]
 	if ok {
-		p.isready <- true
+		p.isready <- 1
 	} else {
 		fmt.Println("player went missing")
 	}
@@ -316,85 +322,4 @@ func (r *rooms) isItYourTurn(pid string) bool {
 		return true
 	}
 	return false
-}
-
-func closeDoor(gid string) {
-	r := Conn.rooms[gid]
-	if len(r.player) == 0 {
-		delete(Conn.rooms, gid)
-		fmt.Printf("ROOM %s is closed!\n", gid)
-		r.isdestroyed <- true
-	}
-}
-
-func serveRoom(r *rooms) {
-	for {
-		select {
-		case <-r.turn:
-			r.switchPlayerTurn()
-
-		case index := <-r.playerleft:
-			r.player[index].isdestroyed <- r.gid
-			go Conn.clearConn(r.player[index].pid, r.gid, index)
-
-		case <-time.After(60 * time.Second):
-			r.switchPlayerTurn()
-
-		case <-r.isdestroyed:
-			fmt.Println("\n**** Showtime is over! ****")
-			return
-		}
-	}
-}
-
-func readPump(c *connection) {
-
-	r := &ClientMessage{}
-	for {
-		err := c.client.ReadJSON(r)
-		if err != nil {
-			c.client.Close()
-
-			if c.gamePos < 0 {
-				c.isdestroyed <- ""
-				Conn.clearConn(c.pid, "", 0)
-				return
-			}
-
-			fmt.Println("Player left, waiting for reconnect")
-			select {
-			case <-time.After(60 * time.Second):
-				Conn.rooms[c.gid].playerleft <- c.gamePos
-				return
-			case <-c.reconnect:
-				fmt.Println("player reconnected")
-			}
-		}
-		if r.Code == 2 {
-			if Conn.rooms[c.gid].isItYourTurn(c.pid) {
-				Conn.rooms[c.gid].turn <- r.Code
-			}
-		}
-	}
-}
-
-func writePump(c *connection) {
-	for {
-		select {
-		case <-c.isready:
-			msg := &ClientMessage{
-				Code: 0,
-				Gid:  c.gid,
-				Data: Data{Test: 1},
-			}
-			fmt.Printf("Hey %s, it's your turn dude", c.pid)
-			c.client.WriteJSON(msg)
-
-		case <-c.isdestroyed:
-			return
-
-		case <-time.After(50 * time.Second):
-			c.client.WriteJSON("ping")
-		}
-	}
 }
