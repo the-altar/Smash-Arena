@@ -1,6 +1,7 @@
 package arena
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -30,12 +31,25 @@ func GetAllPersona(g *gin.Context) {
 
 // OneSkillSet from a character
 func OneSkillSet(g *gin.Context) {
-	id, err := strconv.Atoi(g.Param("id"))
+	_, err := strconv.Atoi(g.Param("id"))
 	if err != nil {
 		g.JSON(http.StatusBadRequest, 0)
 	}
 
-	s := oneSkillSet(id)
-	g.JSON(http.StatusOK, s)
+	//s := oneSkillSet(id)
+	g.JSON(http.StatusOK, nil)
 	return
+}
+
+// CreatePersona adds a new character to the database
+func CreatePersona(g *gin.Context) {
+	p := Persona{}
+	rawData, err := g.GetRawData()
+	if err != nil {
+		return
+	}
+
+	json.Unmarshal(rawData, &p)
+
+	newPersona(p)
 }

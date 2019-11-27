@@ -1,12 +1,37 @@
 package arena
 
-import "github.com/the-altar/Smash-Arena/pkg/config"
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/the-altar/Smash-Arena/pkg/config"
+)
 
 // Persona struct
 type Persona struct {
-	ID      int
-	Name    string
-	Profile string
+	ID       int    `json:"id"`
+	Nickname string `json:"nickname"`
+	Profile  string `json:"profile"`
+	Facepic  string `json:"facepic"`
+	Skills   []struct {
+		SkillName   string `json:"skillName"`
+		Skillpic    string `json:"skillpic"`
+		Description string `json:"description"`
+		Cooldown    string `json:"cooldown"`
+		Selection   int    `json:"selection"`
+		Costs       []int  `json:"costs"`
+		Effects     []struct {
+			Type       int `json:"type"`
+			Tick       int `json:"tick"`
+			Duration   int `json:"duration"`
+			Value      int `json:"value"`
+			Condition  int `json:"condition"`
+			Attr       int `json:"attr"`
+			Trigger    int `json:"trigger"`
+			AutoTarget int `json:"auto_target"`
+		} `json:"effects"`
+		Target int `json:"target"`
+	} `json:"skills"`
 }
 
 // AllPersona from database
@@ -24,7 +49,8 @@ func allPersona() []Persona {
 
 	for rows.Next() {
 		p1 := Persona{}
-		if err = rows.Scan(&p1.ID, &p1.Name, &p1.Profile); err != nil {
+		var s json.RawMessage
+		if err = rows.Scan(&p1.ID, &p1.Nickname, &p1.Profile, &s); err != nil {
 			panic(err)
 		}
 		p = append(p, p1)
@@ -36,4 +62,21 @@ func allPersona() []Persona {
 	}
 
 	return p
+}
+
+func newPersona(p Persona) {
+	sql := "INSERT INTO public.persona (nickname, profile, gamedata, facepic) VALUES($1, $2, $3, $4);"
+	rawData, err := json.Marshal(&p.Skills)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	s := string(rawData)
+	fmt.Println(s)
+	if _, err = config.DB.Query(sql, p.Nickname, p.Profile, p.Facepic, s); err != nil {
+		fmt.Println(err)
+		return
+	}
+	return
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/the-altar/Smash-Arena/pkg/context/account"
+	"github.com/the-altar/Smash-Arena/pkg/context/admin"
 	"github.com/the-altar/Smash-Arena/pkg/context/arena"
 	"github.com/the-altar/Smash-Arena/pkg/context/home"
 )
@@ -13,7 +14,9 @@ func main() {
 	g := gin.New()
 	g.LoadHTMLGlob("templates/**/*")
 	g.GET("/", home.Home)
-	g.Use(static.Serve("/", static.LocalFile("./public", true)))
+
+	g.GET("/admin", admin.Editor)
+	g.POST("/admin/new/persona", arena.CreatePersona)
 
 	g.GET("/arena", arena.Arena)
 	g.GET("/arena/ingame", arena.Arena)
@@ -25,6 +28,8 @@ func main() {
 	g.POST("/account/signin", account.Signin)
 	g.POST("/account/signup", account.Signup)
 	g.POST("/account/signout", account.Signout)
+
+	g.Use(static.Serve("/", static.LocalFile("./public", true)))
 
 	g.Run()
 
