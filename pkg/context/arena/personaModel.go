@@ -49,10 +49,11 @@ func allPersona() []Persona {
 
 	for rows.Next() {
 		p1 := Persona{}
-		var s json.RawMessage
-		if err = rows.Scan(&p1.ID, &p1.Nickname, &p1.Profile, &s); err != nil {
+		var s string
+		if err = rows.Scan(&p1.ID, &p1.Nickname, &p1.Profile, &s, &p1.Facepic); err != nil {
 			panic(err)
 		}
+		json.Unmarshal([]byte(s), &p1.Skills)
 		p = append(p, p1)
 	}
 

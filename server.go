@@ -17,11 +17,12 @@ func main() {
 
 	g.GET("/admin", admin.Editor)
 	g.POST("/admin/new/persona", arena.CreatePersona)
+	g.GET("/admin/persona", arena.AllPersona)
 
 	g.GET("/arena", arena.Arena)
 	g.GET("/arena/ingame", arena.Arena)
 	g.GET("/arena/ws/:id", arena.GameSocket)
-	g.GET("/arena/api/persona", arena.GetAllPersona)
+	g.GET("/arena/api/persona", arena.AllPersona)
 	g.GET("/arena/api/persona/skill/:id", arena.OneSkillSet)
 	g.GET("/arena/api/account", account.Self)
 

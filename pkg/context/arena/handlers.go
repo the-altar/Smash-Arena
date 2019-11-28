@@ -22,8 +22,8 @@ func Arena(g *gin.Context) {
 	return
 }
 
-// GetAllPersona Fetches all personas from DB
-func GetAllPersona(g *gin.Context) {
+// AllPersona Fetches all personas from DB
+func AllPersona(g *gin.Context) {
 	personas := allPersona()
 	g.JSON(http.StatusOK, personas)
 	return
