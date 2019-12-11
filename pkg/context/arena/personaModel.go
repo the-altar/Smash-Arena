@@ -17,7 +17,7 @@ type Persona struct {
 		SkillName   string `json:"skillName"`
 		Skillpic    string `json:"skillpic"`
 		Description string `json:"description"`
-		Cooldown    string `json:"cooldown"`
+		Cooldown    int    `json:"cooldown"`
 		Selection   int    `json:"selection"`
 		Costs       []int  `json:"costs"`
 		Effects     []struct {
@@ -32,6 +32,15 @@ type Persona struct {
 		} `json:"effects"`
 		Target int `json:"target"`
 	} `json:"skills"`
+}
+
+func (p Persona) stringfyGameData() string {
+	rawData, err := json.Marshal(&p.Skills)
+
+	if err != nil {
+		panic(err)
+	}
+	return string(rawData)
 }
 
 // AllPersona from database
@@ -67,17 +76,18 @@ func allPersona() []Persona {
 
 func newPersona(p Persona) {
 	sql := "INSERT INTO public.persona (nickname, profile, gamedata, facepic) VALUES($1, $2, $3, $4);"
-	rawData, err := json.Marshal(&p.Skills)
+	if _, err := config.DB.Query(sql, p.Nickname, p.Profile, p.stringfyGameData(), p.Facepic); err != nil {
+		panic(err)
+	}
+}
 
-	if err != nil {
-		fmt.Println(err)
-		return
+func updatePersona(p Persona) {
+
+	fmt.Println(p.ID)
+	fmt.Println(p.stringfyGameData())
+	sql := "UPDATE public.persona SET nickname=$1, profile=$2, gamedata=$3, facepic=$4 WHERE persona_key=$5;"
+
+	if _, err := config.DB.Query(sql, p.Nickname, p.Profile, p.stringfyGameData(), p.Facepic, p.ID); err != nil {
+		panic(err)
 	}
-	s := string(rawData)
-	fmt.Println(s)
-	if _, err = config.DB.Query(sql, p.Nickname, p.Profile, p.Facepic, s); err != nil {
-		fmt.Println(err)
-		return
-	}
-	return
 }

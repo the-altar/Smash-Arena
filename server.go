@@ -16,8 +16,9 @@ func main() {
 	g.GET("/", home.Home)
 
 	g.GET("/admin", admin.Editor)
-	g.POST("/admin/new/persona", arena.CreatePersona)
 	g.GET("/admin/persona", arena.AllPersona)
+	g.POST("/admin/new/persona", arena.CreatePersona)
+	g.POST("/admin/update/persona", arena.UpdatePersona)
 
 	g.GET("/arena", arena.Arena)
 	g.GET("/arena/ingame", arena.Arena)
